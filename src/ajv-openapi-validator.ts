@@ -1,0 +1,351 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable no-invalid-this */
+import AjvDraft4 from 'ajv-draft-04';
+import Ajv, { ErrorObject, ValidateFunction, Options } from 'ajv'
+import { OpenAPIV3 } from 'openapi-types'
+import { convertDatesToISOString, ErrorObj, ValidatorHttpMethod, OpenApiValidator, ValidatorOpts, STATUS_BAD_REQUEST, EC_VALIDATION, ET_VALIDATION, DEFAULT_VALIDATOR_OPTS, hasComponentSchemas, isReferenceObject } from './openapi-validator'
+import { DEFAULT_AJV_SETTINGS } from './ajv-opts';
+import { merge, openApiMergeRules } from 'allof-merge'; 
+
+const REQ_BODY_COMPONENT_PREFIX_LENGTH = 27 // #/components/requestBodies/PetBody
+const PARAMS_COMPONENT_PREFIX_LENGH = 24 // #/components/parameters/offsetParam
+const RESPONSE_COMPONENT_PREFIX_LENGTH = 23 // #/components/responses/Unauthorized
+
+interface RouteValidator {
+  path: string
+  method: ValidatorHttpMethod
+  validator: ValidateFunction
+}
+
+interface ResponseValidator extends RouteValidator {
+  status: string
+}
+
+interface ParameterValidator extends RouteValidator {
+  param: {
+    name: string
+    required?: boolean
+    allowEmptyValue?: boolean
+  }
+}
+
+function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined): ErrorObj[] {
+  if (validatorErrors) {
+    const mapped: ErrorObj[] = []
+    validatorErrors.forEach((ajvErr) => {
+      const mappedErr: ErrorObj = {
+        status: STATUS_BAD_REQUEST,
+        code: `${EC_VALIDATION}-${ajvErr.keyword}`,
+        title: ajvErr.message ?? ET_VALIDATION,
+      }
+
+      if (ajvErr.schemaPath) {
+        mappedErr.source = {
+          pointer: ajvErr.schemaPath,
+        }
+      }
+      mapped.push(mappedErr)
+    })
+    return mapped
+  } else {
+    return [
+      {
+        status: STATUS_BAD_REQUEST,
+        code: EC_VALIDATION,
+        title: ET_VALIDATION,
+      },
+    ]
+  }
+}
+
+export class AjvOpenApiValidator implements OpenApiValidator {
+  private readonly requestBodyValidators: RouteValidator[] = []
+  private readonly responseBodyValidators: ResponseValidator[] = []
+  private readonly paramsValidators: ParameterValidator[] = []
+  private readonly ajv: Ajv
+  private readonly validatorOpts: Required<ValidatorOpts>
+
+  /**
+   * @param spec - Parsed OpenAPI V3 specification
+   * @param ajvOpts - Optional Ajv options
+   * @param validatorOpts - Optional additional validator options
+   */
+  constructor(spec: OpenAPIV3.Document, ajvOpts: Options = DEFAULT_AJV_SETTINGS, validatorOpts?: ValidatorOpts) {
+    // always disable removeAdditional, because it has unexpected results with allOf
+    this.ajv = new AjvDraft4({ ...ajvOpts, removeAdditional: false })
+    this.validatorOpts = validatorOpts ? { ...DEFAULT_VALIDATOR_OPTS, ...validatorOpts } : DEFAULT_VALIDATOR_OPTS
+    this.initialize(spec)
+  }
+
+  validateResponseBody(
+    path: string,
+    method: ValidatorHttpMethod,
+    status: string,
+    data: unknown,
+    strict: boolean): ErrorObj[] | undefined {
+      const validator = this.responseBodyValidators.find((v) => v.path === path && v.method === method && v.status === status)?.validator
+      if (validator) { 
+        return this.validateBody(validator, data)
+      } else if (strict) {
+        throw new Error(`No validator found for '${method} ${path}'`)
+      }
+      return undefined
+    }
+
+    validateRequestBody(
+      path: string,
+      method: ValidatorHttpMethod,
+      data: unknown,
+      strict: boolean): ErrorObj[] | undefined {
+        const validator = this.requestBodyValidators.find((v) => v.path === path && v.method === method)?.validator
+        if (validator) {
+          return this.validateBody(validator, data)
+        } else if (strict) {
+          throw new Error(`No validator found for '${method} ${path}'`)
+        }
+        return undefined
+      }
+
+
+  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
+      const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
+      const res = validator(filteredData)
+
+      if (!res) {
+        return mapValidatorErrors(validator.errors)
+      }
+
+      return undefined
+  }
+
+  validateQueryParams(
+    path: string,
+    method: ValidatorHttpMethod,
+    params: URLSearchParams,
+    strict = true
+  ): ErrorObj[] | undefined {
+    const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path && p.method === method)
+
+    let errResponse: ErrorObj[] = []
+    params.forEach((value, key) => {
+      const paramDefinitionIndex = parameterDefinitions.findIndex((p) => p.param.name === key)
+      if (paramDefinitionIndex < 0) {
+        if (strict) {
+          errResponse.push({
+            status: STATUS_BAD_REQUEST,
+            code: `${EC_VALIDATION}-invalid-query-parameter`,
+            title: 'The query parameter is not supported.',
+            source: {
+              parameter: key,
+            },
+          })
+        }
+      } else {
+        const paramDefinition = parameterDefinitions.splice(paramDefinitionIndex, 1)[0]
+
+        const rejectEmptyValues = !(paramDefinition.param.allowEmptyValue === true)
+        if (
+          rejectEmptyValues &&
+          (value === undefined || value === null || String(value).trim() === '')
+        ) {
+          errResponse.push({
+            status: STATUS_BAD_REQUEST,
+            code: `${EC_VALIDATION}-query-parameter`,
+            title: 'The query parameter must not be empty.',
+            source: {
+              parameter: key,
+            },
+          })
+        } else {
+          const validator = paramDefinition.validator
+          if (!validator) {
+            throw new Error('The validator needs to be iniatialized first')
+          }
+
+          const res = validator(value)
+
+          if (!res) {
+            const validationErrors = mapValidatorErrors(validator.errors)
+            errResponse = errResponse.concat(validationErrors)
+          }
+        }
+      }
+    })
+
+    if (parameterDefinitions.length) {
+      parameterDefinitions
+        .filter((p) => p.param.required)
+        .forEach((p) => {
+          errResponse.push({
+            status: STATUS_BAD_REQUEST,
+            code: `${EC_VALIDATION}-required-query-parameter`,
+            title: 'The query parameter is required.',
+            source: {
+              parameter: p.param.name,
+            },
+          })
+        })
+    }
+
+    return errResponse.length ? errResponse : undefined
+  }
+
+  private initialize(origSpec: OpenAPIV3.Document): void {
+
+    const schemaCompileFailures: string[] = []
+    const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() })
+
+    if (hasComponentSchemas(spec)) {
+      Object.keys(spec.components.schemas).forEach((key) => {
+        const schema = spec.components.schemas[key]
+        if (this.validatorOpts.setAdditionalPropertiesToFalse === true) {
+          if (!isReferenceObject(schema) && schema.additionalProperties === undefined && schema.discriminator === undefined) {
+            schema.additionalProperties = false
+          }
+        }
+
+        this.ajv.addSchema(schema, `#/components/schemas/${key}`,);
+      });
+    }
+
+    if (spec.paths) {
+      for (const pathEntries of Object.entries(spec.paths)) {
+        const path = pathEntries[0]
+        const pathDetail = pathEntries[1]
+
+        if (!pathDetail) {
+          if (this.validatorOpts.strict) {
+            throw new Error('Expected to find detail for ' + path)
+          } else {
+            continue
+          }
+        }
+
+        for (const methodEntry of Object.entries(pathDetail)) {
+          const method = methodEntry[0] as OpenAPIV3.HttpMethods
+          const operation = methodEntry[1] as OpenAPIV3.OperationObject
+          
+          if (operation.requestBody) {
+            let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
+
+            if (isReferenceObject(operation.requestBody)) {
+              let errorStr: string | undefined
+
+              if (operation.requestBody.$ref.length > REQ_BODY_COMPONENT_PREFIX_LENGTH) {
+                const requestBodyName = operation.requestBody.$ref.substring(REQ_BODY_COMPONENT_PREFIX_LENGTH)
+                if (spec.components?.requestBodies && spec.components?.requestBodies[requestBodyName]) {
+                  const response = spec.components?.requestBodies[requestBodyName]
+                  if (!isReferenceObject(response)) {
+                    schema = response.content['application/json']?.schema
+                  } else {
+                    errorStr = `A reference was not expected here: '${response.$ref}'`
+                  }
+                } else {
+                  errorStr = `Unable to find request body reference '${operation.requestBody.$ref}'`
+                }
+              } else {
+                errorStr = `Unable to follow request body reference '${operation.requestBody.$ref}'`
+              }
+              if (errorStr && this.validatorOpts.strict) {
+                throw new Error(errorStr)
+              }
+            } else if (operation.requestBody.content['application/json']) {
+              schema = operation.requestBody.content['application/json'].schema
+            }
+
+            if (schema) {
+              const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/requestBody`
+              this.ajv.addSchema(schema, schemaName);
+              const validator = this.ajv.compile({ $ref: schemaName })
+              this.requestBodyValidators.push({ path, method, validator})
+            }
+          }
+
+          if (operation.responses) {
+            Object.keys(operation.responses).forEach((key) => {
+              const response = operation.responses[key]
+
+              let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
+
+              if (isReferenceObject(response)) {
+                let errorStr: string | undefined
+
+                if (response.$ref.length > RESPONSE_COMPONENT_PREFIX_LENGTH) {
+                  const respName = response.$ref.substring(RESPONSE_COMPONENT_PREFIX_LENGTH)
+                  if (spec.components?.responses && spec.components?.responses[respName]) {
+                    const response = spec.components?.responses[respName]
+                    if (!isReferenceObject(response)) {
+                      schema = response.content ? response.content['application/json']?.schema : undefined
+                    } else {
+                      errorStr = `A reference was not expected here: '${response.$ref}'`
+                    }
+                  } else {
+                    errorStr = `Unable to find response reference '${response.$ref}'`
+                  }
+                } else {
+                  errorStr = `Unable to follow response reference '${response.$ref}'`
+                }
+                if (errorStr && this.validatorOpts.strict) {
+                  throw new Error(errorStr)
+                }
+              } else if (response.content) {
+                schema = response.content['application/json']?.schema
+              }
+
+              if (schema) {
+                const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/response/${key}`
+                this.ajv.addSchema(schema, schemaName);
+                const validator = this.ajv.compile({ $ref: schemaName })
+                this.responseBodyValidators.push({ path, method, status: key, validator})
+              }
+            })
+          }
+          
+          if (operation.parameters) {
+            operation.parameters.forEach((param) => {
+
+              let resolvedParam: OpenAPIV3.ParameterObject | undefined
+
+              if (isReferenceObject(param)) {
+                let errorStr: string | undefined
+
+                if (param.$ref.length > PARAMS_COMPONENT_PREFIX_LENGH) {
+                  const paramName = param.$ref.substring(PARAMS_COMPONENT_PREFIX_LENGH)
+                  if (spec.components?.parameters && spec.components?.parameters[paramName]) {
+                    const paramValue = spec.components?.parameters[paramName]
+                    if (!isReferenceObject(paramValue)) {
+                      resolvedParam = paramValue
+                    } else {
+                      errorStr = `A reference was not expected here: '${param.$ref}'`
+                    }
+                  } else {
+                    errorStr = `Unable to find parameter reference '${param.$ref}'`
+                  }
+                } else {
+                  errorStr = `Unable to follow parameter reference '${param.$ref}'`
+                }
+                if (errorStr && this.validatorOpts.strict) {
+                  throw new Error(errorStr)
+                }
+              } else {
+                resolvedParam = param
+              }
+
+              // TODO could also add support for other parameters such as headers here
+              if (resolvedParam?.in === 'query' && resolvedParam.schema) {
+                const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/parameters/${resolvedParam.name}`
+                this.ajv.addSchema(resolvedParam.schema, schemaName);
+                const validator = this.ajv.compile({ $ref: schemaName })
+                this.paramsValidators.push({ path, method, param: { name: resolvedParam.name, required: resolvedParam.required, allowEmptyValue: resolvedParam.allowEmptyValue }, validator})
+              }
+            })
+          }
+        }
+      }
+    }
+    
+    if (this.validatorOpts.strict && schemaCompileFailures.length > 0) {
+      throw new Error('The following schemas failed to compile: ' + schemaCompileFailures.join(', '))
+    }
+  }
+}
