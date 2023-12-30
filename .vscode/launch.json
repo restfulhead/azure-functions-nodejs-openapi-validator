@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to Node Functions",
+            "type": "node",
+            "request": "attach",
+            "port": 9229,
+            "preLaunchTask": "func: host start"
+        },
+        {
+            "name": "Test current file",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/jest/bin/jest",
+            "args": ["${relativeFile}", "--config", "${workspaceFolder}/jest.config.js", "--testTimeout", "300000", "--no-cache", "--runInBand", "--detectOpenHandles"],
+            "internalConsoleOptions": "openOnSessionStart",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "outputCapture": "std",
+            "smartStep": true, 
+            "skipFiles": [
+                "<node_internals>/**",
+                "node_modules/**"
+            ],
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/**",
+                "!**/node_modules/**"
+            ]
+          },
+    ]
+}
