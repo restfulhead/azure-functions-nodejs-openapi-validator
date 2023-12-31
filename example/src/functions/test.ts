@@ -6,24 +6,31 @@ import { AjvOpenApiValidator } from '@restfulhead/azure-functions-nodejs-openapi
 const openApiContent = fs.readFileSync(`${__dirname}/../../../../test/fixtures/openapi.yaml`, 'utf8')
 const validator = new AjvOpenApiValidator(yaml.load(openApiContent) as any)
 
+const createJsonResponse = (body: any, status: number = 200, headers?: HeadersInit): HttpResponseInit => {
+    return { body: body === undefined || body === null ? undefined : JSON.stringify(body), status: 400, headers: headers ? headers : { 'Content-Type': 'application/json' } }
+}
+
 app.hook.preInvocation((preContext: PreInvocationContext) => {
     const originalHandler = preContext.functionHandler 
-    const path = preContext.invocationContext.options.trigger.route
+    const path = '/' + preContext.invocationContext.options.trigger.route
 
     preContext.functionHandler = (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
         const method = request.method
         const requestBody = request.body
+        preContext.hookData.requestMethod = method
 
         context.log(`Validating query parameters '${path}', '${method}'`);
         const reqParamsValResult = validator.validateQueryParams(path, method, request.query)
         if (reqParamsValResult) {
-            return Promise.resolve({body: reqParamsValResult, status: 400 })
+            preContext.hookData.requestQueryParameterValidationError = true
+            return Promise.resolve(createJsonResponse(reqParamsValResult, 400))
         }
         
         context.log(`Validating request body for '${path}', '${method}'`);
         const reqBodyValResult = validator.validateRequestBody(path, method,  requestBody, true)
         if (reqBodyValResult) {
-            return Promise.resolve({body: reqBodyValResult, status: 400 })
+            preContext.hookData.requestBodyValidationError = true
+            return Promise.resolve(createJsonResponse(reqBodyValResult, 400))
         }
 
         return originalHandler(request, context)
@@ -32,12 +39,12 @@ app.hook.preInvocation((preContext: PreInvocationContext) => {
 
 
 app.hook.postInvocation((postContext: PostInvocationContext) => {
-    const path = postContext.invocationContext.options.trigger.route
-    const method = 'post' // TODO hook data or else? postContext.invocationContext.
+    const path = '/' + postContext.invocationContext.options.trigger.route
+    const method = postContext.hookData.requestMethod
 
-    if (postContext.result) {
+    if (postContext.result && !postContext.hookData.requestBodyValidationError && !postContext.hookData.requestQueryParameterValidationError) {
         // TODO validate response body
-        const respBodyValResult = validator.validateResponseBody(path, method,  postContext.result, true)
+        const respBodyValResult = validator.validateResponseBody(path, method,  (postContext.result as any)?.status, true)
         if (respBodyValResult) {
             postContext.result = { body: respBodyValResult, status: 400 }
         }
@@ -63,8 +70,8 @@ app.hook.postInvocation(async () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
 });
 
-app.post('post-hello-world', {
-    route: 'hello/{world}',
+app.put('post-users-uid', {
+    route: 'users/{uid}',
     authLevel: 'anonymous',
     handler: postHelloWorld
 });

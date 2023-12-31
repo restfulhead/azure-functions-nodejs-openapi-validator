@@ -41,29 +41,29 @@ describe('The  api validator', () => {
   })
 
   it('should allow additional props', () => {
-    expect(validator.validateRequestBody('/additional-props', 'post', { somethingElse: 1, otherAddedProp: '123' }, true)).toEqual(undefined)
+    expect(validator.validateRequestBody('/additional-props', 'post', { somethingElse: 1, otherAddedProp: '123' })).toEqual(undefined)
   })
   
   it('should succeed oneOf A', () => {
     const dataWithExtra = { name: 'test', description: 'hello', objType: 'a' }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra, true)).toEqual(undefined)
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(undefined)
   })
 
   it('should succeed oneOf B', () => {
     const dataWithExtra = { somethingElse: 123, objType: 'b' }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra, true)).toEqual(undefined)
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(undefined)
   })
 
   it('should fail oneOf AB', () => {
     const dataWithExtra = { name: 'test', description: 'hello', objType: 'a', somethingElse: 1 }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra, true)).toEqual(
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(
       [{"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/TestRequestA/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}]
     )
   })
 
   it('should fail oneOf missing discriminator', () => {
     const dataWithExtra = { name: 'test' }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra, true)).toEqual(
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(
       [{"code": "Validation-discriminator", "source": {"pointer": "#/discriminator"}, "status": 400, "title": "tag \"objType\" must be string"}]
     )
   })

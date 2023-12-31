@@ -49,8 +49,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PutUserResponse'
+        '400':
+          $ref: '#/components/responses/ResponseError'
         '500':
-          $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/ResponseError'
   
   '/additional-props':
     post:
@@ -62,7 +64,7 @@ paths:
         required: true
       responses:
         '500':
-          $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/ResponseError'
   
   '/one-of-example':
     get:
@@ -84,11 +86,11 @@ paths:
         required: true
       responses:
         '500':
-          $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/ResponseError'
 
 components:
   responses:
-    InternalServerError:
+    ResponseError:
       description: An unexpected server error occurred
       content:
         application/json:
