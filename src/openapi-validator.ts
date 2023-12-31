@@ -50,15 +50,13 @@ export interface ErrorSource {
     validateRequestBody(
       path: string,
       method: ValidatorHttpMethod,
-      data: unknown,
-      strict: boolean): ErrorObj[] | undefined
+      data: unknown): ErrorObj[] | undefined
 
     validateResponseBody(
       path: string,
       method: ValidatorHttpMethod,
       status: string,
-      data: unknown,
-      strict: boolean): ErrorObj[] | undefined
+      data: unknown): ErrorObj[] | undefined
       
     validateQueryParams(
       path: string,
@@ -112,12 +110,15 @@ export interface ValidatorOpts {
   convertDatesToIsoString?: boolean
   /** whether to fail initialization if one of the schema compilations fails */
   strict?: boolean
+  /** function used to log messages */
+  log?: (message: string) => void
 }
 
 export const DEFAULT_VALIDATOR_OPTS: Required<ValidatorOpts> = {
   setAdditionalPropertiesToFalse: true,
   convertDatesToIsoString: true,
   strict: true,
+  log: (message: string) => { console.log(message) }
 }
 
 
