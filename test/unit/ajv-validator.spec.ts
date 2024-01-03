@@ -1,9 +1,8 @@
 import { loadSpec } from '../helpers/test-utils'
-import { OpenApiValidator } from '../../src/openapi-validator'
 import { AjvOpenApiValidator } from '../../src/ajv-openapi-validator'
 
 describe('The  api validator', () => {
-  let validator: OpenApiValidator
+  let validator: AjvOpenApiValidator
 
   beforeAll(async () => {
     const spec = await loadSpec()

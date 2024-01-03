@@ -6,7 +6,6 @@ import { OpenAPIV3 } from 'openapi-types'
 import {
   convertDatesToISOString,
   ErrorObj,
-  OpenApiValidator,
   ValidatorOpts,
   STATUS_BAD_REQUEST,
   EC_VALIDATION,
@@ -26,6 +25,10 @@ interface RouteValidator {
   path: string
   method: string
   validator: ValidateFunction
+}
+
+interface RequestValidator extends RouteValidator {
+  required: boolean
 }
 
 interface ResponseValidator extends RouteValidator {
@@ -69,8 +72,8 @@ function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined): 
   }
 }
 
-export class AjvOpenApiValidator implements OpenApiValidator {
-  private readonly requestBodyValidators: RouteValidator[] = []
+export class AjvOpenApiValidator {
+  private readonly requestBodyValidators: RequestValidator[] = []
   private readonly responseBodyValidators: ResponseValidator[] = []
   private readonly paramsValidators: ParameterValidator[] = []
   private readonly ajv: Ajv
@@ -92,7 +95,7 @@ export class AjvOpenApiValidator implements OpenApiValidator {
     this.initialize(spec)
   }
 
-  validateResponseBody(path: string, method: string, status: string, data: unknown, strict = true): ErrorObj[] | undefined {
+  validateResponseBody(path: string, method: string, status: string | number, data: unknown, strict = true): ErrorObj[] | undefined {
     const validator = this.responseBodyValidators.find(
       (v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + ''
     )?.validator
@@ -113,20 +116,30 @@ export class AjvOpenApiValidator implements OpenApiValidator {
 
   validateRequestBody(path: string, method: string, data: unknown, strict = true): ErrorObj[] | undefined {
     const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
-      ?.validator
-    if (validator) {
-      return this.validateBody(validator, data)
-    } else if (data !== undefined && data !== null && strict) {
+
+    if (data !== undefined && data !== null) {
+      if (validator?.validator) {
+        return this.validateBody(validator.validator, data)
+      } else if (strict) {
+        return [
+          {
+            status: STATUS_BAD_REQUEST,
+            code: `${EC_VALIDATION}-unexpected-request-body`,
+            title: 'A request body is not supported',
+          },
+        ]
+      }
+    } else if (validator?.required) {
       return [
         {
           status: STATUS_BAD_REQUEST,
-          code: `${EC_VALIDATION}-unexpected-request-body`,
-          title: 'A request body is not supported',
+          code: `${EC_VALIDATION}-missing-request-body`,
+          title: 'A request body is required',
         },
       ]
-    } else {
-      return undefined
     }
+
+    return undefined
   }
 
   validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
@@ -241,6 +254,7 @@ export class AjvOpenApiValidator implements OpenApiValidator {
 
           if (operation.requestBody) {
             let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
+            let required = false
 
             if (isReferenceObject(operation.requestBody)) {
               let errorStr: string | undefined
@@ -251,6 +265,7 @@ export class AjvOpenApiValidator implements OpenApiValidator {
                   const response = spec.components?.requestBodies[requestBodyName]
                   if (!isReferenceObject(response)) {
                     schema = response.content['application/json']?.schema
+                    required = !!response.required
                   } else {
                     errorStr = `A reference was not expected here: '${response.$ref}'`
                   }
@@ -265,14 +280,22 @@ export class AjvOpenApiValidator implements OpenApiValidator {
               }
             } else if (operation.requestBody.content['application/json']) {
               schema = operation.requestBody.content['application/json'].schema
+              required = !!operation.requestBody.required
             }
 
             if (schema) {
               const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/requestBody`
-              this.validatorOpts.log(`Adding request body validator '${path}', '${method}' with schema '${schemaName}'`)
+              this.validatorOpts.log(
+                `Adding request body validator '${path}', '${method}' with schema '${schemaName}' (required: ${required})`
+              )
               this.ajv.addSchema(schema, schemaName)
               const validator = this.ajv.compile({ $ref: schemaName })
-              this.requestBodyValidators.push({ path: path.toLowerCase(), method: method.toLowerCase() as string, validator })
+              this.requestBodyValidators.push({
+                path: path.toLowerCase(),
+                method: method.toLowerCase() as string,
+                validator,
+                required: required,
+              })
             }
           }
 

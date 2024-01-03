@@ -1,12 +1,12 @@
 import * as fs from 'fs'
 import * as yaml from 'js-yaml'
-import { app, HttpResponseInit, InvocationContext } from '@azure/functions'
-import { setupValidation, ParsedRequestBodyHttpRequest } from '@restfulhead/azure-functions-nodejs-openapi-validator'
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions'
+import { setupValidation } from '@restfulhead/azure-functions-nodejs-openapi-validator'
 
 /***
  * Load the OpenAPI spec from a file and setup the validator
  */
-const openApiContent = fs.readFileSync(`${__dirname}/../../../../test/fixtures/openapi.yaml`, 'utf8')
+const openApiContent = fs.readFileSync(`${__dirname}/../../../src/openapi.yaml`, 'utf8')
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const openApiSpec = yaml.load(openApiContent) as any
 
@@ -21,20 +21,29 @@ app.hook.postInvocation(async () => {
   await new Promise((resolve) => setTimeout(resolve, 50))
 })
 
-// eslint-disable-next-line require-await
-export async function putUser(
-  request: ParsedRequestBodyHttpRequest<{ name: string }>,
-  context: InvocationContext
-): Promise<HttpResponseInit> {
+export async function postUser(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log(`Http function processed request for url "${request.url}"`)
 
-  const name = request.parsedBody.name
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const requestBody: any = await request.json()
 
-  return { body: `Hello, ${name}!` }
+  return { jsonBody: { name: requestBody.name, id: '123' }, status: 201 }
 }
 
-app.put('post-users-uid', {
+export function getUser(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  context.log(`Http function processed request for url "${request.url}"`)
+
+  return Promise.resolve({ body: JSON.stringify({ name: 'jane doe', id: '456' }) })
+}
+
+app.post('post-users', {
+  route: 'users',
+  authLevel: 'anonymous',
+  handler: postUser,
+})
+
+app.get('get-users-uid', {
   route: 'users/{uid}',
   authLevel: 'anonymous',
-  handler: putUser,
+  handler: getUser,
 })

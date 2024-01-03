@@ -44,14 +44,6 @@ export interface ErrorObj {
   links?: { [key: string]: string }
 }
 
-export interface OpenApiValidator {
-  validateRequestBody(path: string, method: string, data: unknown): ErrorObj[] | undefined
-
-  validateResponseBody(path: string, method: string, status: string, data: unknown): ErrorObj[] | undefined
-
-  validateQueryParams(path: string, method: string, params: URLSearchParams, strict: boolean): ErrorObj[] | undefined
-}
-
 type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] }
 
 export interface DocWithCompSchemas extends OpenAPIV3.Document {
