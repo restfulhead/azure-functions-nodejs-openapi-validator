@@ -1,6 +1,6 @@
 import { loadSpec } from '../helpers/test-utils'
-import { OpenApiValidator} from '../../src/openapi-validator'
-import { AjvOpenApiValidator} from '../../src/ajv-openapi-validator'
+import { OpenApiValidator } from '../../src/openapi-validator'
+import { AjvOpenApiValidator } from '../../src/ajv-openapi-validator'
 
 describe('The  api validator', () => {
   let validator: OpenApiValidator
@@ -11,11 +11,13 @@ describe('The  api validator', () => {
   })
 
   it('should succeed ApiError model validation', () => {
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 400, code: 'Validation', title: '...' }] }, true)).toEqual(undefined)
+    expect(
+      validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 400, code: 'Validation', title: '...' }] })
+    ).toEqual(undefined)
   })
 
   it('should fail ApiError model due to missing code', () => {
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [ { status: 400, title: '...' } ] }, true)).toEqual([      
+    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 400, title: '...' }] })).toEqual([
       {
         code: 'Validation-required',
         status: 400,
@@ -26,7 +28,9 @@ describe('The  api validator', () => {
   })
 
   it('should fail ApiError validation due to wrong status', () => {
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 700, code: 'Validation', title: '...' } ] }, true)).toEqual([      
+    expect(
+      validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 700, code: 'Validation', title: '...' }] })
+    ).toEqual([
       {
         code: 'Validation-maximum',
         status: 400,
@@ -37,13 +41,24 @@ describe('The  api validator', () => {
   })
 
   it('should fail due to additional props', () => {
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [ { status: 400, code: 'Validation', title: '...', unknownPro: '123' } ] }, true)).toEqual([{"code": "Validation-additionalProperties", "source": {"pointer": "#/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}])
+    expect(
+      validator.validateResponseBody('/users/{uid}', 'put', '500', {
+        errors: [{ status: 400, code: 'Validation', title: '...', unknownPro: '123' }],
+      })
+    ).toEqual([
+      {
+        code: 'Validation-additionalProperties',
+        source: { pointer: '#/additionalProperties' },
+        status: 400,
+        title: 'must NOT have additional properties',
+      },
+    ])
   })
 
   it('should allow additional props', () => {
     expect(validator.validateRequestBody('/additional-props', 'post', { somethingElse: 1, otherAddedProp: '123' })).toEqual(undefined)
   })
-  
+
   it('should succeed oneOf A', () => {
     const dataWithExtra = { name: 'test', description: 'hello', objType: 'a' }
     expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(undefined)
@@ -56,43 +71,54 @@ describe('The  api validator', () => {
 
   it('should fail oneOf AB', () => {
     const dataWithExtra = { name: 'test', description: 'hello', objType: 'a', somethingElse: 1 }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(
-      [{"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/TestRequestA/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}]
-    )
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual([
+      {
+        code: 'Validation-additionalProperties',
+        source: { pointer: '#/components/schemas/TestRequestA/additionalProperties' },
+        status: 400,
+        title: 'must NOT have additional properties',
+      },
+    ])
   })
 
   it('should fail oneOf missing discriminator', () => {
     const dataWithExtra = { name: 'test' }
-    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(
-      [{"code": "Validation-discriminator", "source": {"pointer": "#/discriminator"}, "status": 400, "title": "tag \"objType\" must be string"}]
-    )
+    expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual([
+      { code: 'Validation-discriminator', source: { pointer: '#/discriminator' }, status: 400, title: 'tag "objType" must be string' },
+    ])
   })
-
 
   it('should succeed allOf', () => {
     const dataWithExtra = { name: 'test', description: 'hello', somethingElse: 1, status: 'pending' }
-    expect(validator.validateRequestBody('/all-of-example', 'post', dataWithExtra, true)).toEqual(undefined)
+    expect(validator.validateRequestBody('/all-of-example', 'post', dataWithExtra)).toEqual(undefined)
   })
 
   it('should fail allOf', () => {
     const dataWithExtra = { name: 'test', status: 'pending' }
-    expect(validator.validateRequestBody('/all-of-example', 'post', dataWithExtra, true)).toEqual(
-      [{"code": "Validation-required", "source": {"pointer": "#/components/schemas/AllOfExample/required"}, "status": 400, "title": "must have required property 'somethingElse'"}]
-    )
+    expect(validator.validateRequestBody('/all-of-example', 'post', dataWithExtra)).toEqual([
+      {
+        code: 'Validation-required',
+        source: { pointer: '#/components/schemas/AllOfExample/required' },
+        status: 400,
+        title: "must have required property 'somethingElse'",
+      },
+    ])
   })
 
   it('should succeed date time str', () => {
-    const dataWithExtra = { arrayAttr: [ { version: 1, timeAccepted: '2020-01-01T00:00:00.000Z' } ] }
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '200', dataWithExtra, true)).toEqual(undefined)
+    const dataWithExtra = { arrayAttr: [{ version: 1, timeAccepted: '2020-01-01T00:00:00.000Z' }] }
+    expect(validator.validateResponseBody('/users/{uid}', 'put', '200', dataWithExtra)).toEqual(undefined)
   })
 
   it('should succeed date time date', () => {
-    const dataWithExtra = { arrayAttr: [ { version: 1, timeAccepted: new Date() } ] }
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '200', dataWithExtra, true)).toEqual(undefined)
+    const dataWithExtra = { arrayAttr: [{ version: 1, timeAccepted: new Date() }] }
+    expect(validator.validateResponseBody('/users/{uid}', 'put', '200', dataWithExtra)).toEqual(undefined)
   })
 
   it('should succeed parameter validation', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '3', booleanparam: 'true' }), true)).toEqual(undefined)
+    expect(
+      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '3', booleanparam: 'true' }), true)
+    ).toEqual(undefined)
   })
 
   it('should fail parameter validation - missing required parameter', () => {
@@ -118,7 +144,9 @@ describe('The  api validator', () => {
   })
 
   it('should fail parameter validation - extra parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), true)).toEqual([
+    expect(
+      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), true)
+    ).toEqual([
       {
         code: 'Validation-invalid-query-parameter',
         source: { parameter: 'unspecified' },
@@ -129,7 +157,9 @@ describe('The  api validator', () => {
   })
 
   it('should succeed parameter validation - extra parameter non strict', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), false)).toEqual(undefined)
+    expect(
+      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), false)
+    ).toEqual(undefined)
   })
 
   it('should succeed parameter validation - non string types', () => {
@@ -174,7 +204,9 @@ describe('The  api validator', () => {
   })
 
   it('should fail parameter validation - min max', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '2', integerparam: '500' }), false)).toEqual([
+    expect(
+      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '2', integerparam: '500' }), false)
+    ).toEqual([
       {
         code: 'Validation-maximum',
         source: { pointer: '#/paths/users/uid/put/parameters/integerparam/maximum' },

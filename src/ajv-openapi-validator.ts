@@ -1,11 +1,23 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable no-invalid-this */
-import AjvDraft4 from 'ajv-draft-04';
+import AjvDraft4 from 'ajv-draft-04'
 import Ajv, { ErrorObject, ValidateFunction, Options } from 'ajv'
 import { OpenAPIV3 } from 'openapi-types'
-import { convertDatesToISOString, ErrorObj, ValidatorHttpMethod, OpenApiValidator, ValidatorOpts, STATUS_BAD_REQUEST, EC_VALIDATION, ET_VALIDATION, DEFAULT_VALIDATOR_OPTS, hasComponentSchemas, isReferenceObject } from './openapi-validator'
-import { DEFAULT_AJV_SETTINGS } from './ajv-opts';
-import { merge, openApiMergeRules } from 'allof-merge'; 
+import {
+  convertDatesToISOString,
+  ErrorObj,
+  ValidatorHttpMethod,
+  OpenApiValidator,
+  ValidatorOpts,
+  STATUS_BAD_REQUEST,
+  EC_VALIDATION,
+  ET_VALIDATION,
+  DEFAULT_VALIDATOR_OPTS,
+  hasComponentSchemas,
+  isReferenceObject,
+} from './openapi-validator'
+import { DEFAULT_AJV_SETTINGS } from './ajv-opts'
+import { merge, openApiMergeRules } from 'allof-merge'
 
 const REQ_BODY_COMPONENT_PREFIX_LENGTH = 27 // #/components/requestBodies/PetBody
 const PARAMS_COMPONENT_PREFIX_LENGH = 24 // #/components/parameters/offsetParam
@@ -81,49 +93,39 @@ export class AjvOpenApiValidator implements OpenApiValidator {
     this.initialize(spec)
   }
 
-  validateResponseBody(
-    path: string,
-    method: ValidatorHttpMethod,
-    status: string,
-    data: unknown): ErrorObj[] | undefined {
-      const validator = this.responseBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + '')?.validator
-      if (validator) { 
-        return this.validateBody(validator, data)
-      } else {
-        throw new Error(`No response body validator found for '${method}', '${path}', ${status}`)
-      }
+  validateResponseBody(path: string, method: ValidatorHttpMethod, status: string, data: unknown): ErrorObj[] | undefined {
+    const validator = this.responseBodyValidators.find(
+      (v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + ''
+    )?.validator
+    if (validator) {
+      return this.validateBody(validator, data)
+    } else {
+      throw new Error(`No response body validator found for '${method}', '${path}', ${status}`)
     }
-
-    validateRequestBody(
-      path: string,
-      method: ValidatorHttpMethod,
-      data: unknown): ErrorObj[] | undefined {
-        const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())?.validator
-        if (validator) {
-          return this.validateBody(validator, data)
-        } else {
-          throw new Error(`No request body validator found for '${method} ${path}'`)
-        }
-      }
-
-
-  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
-      const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
-      const res = validator(filteredData)
-
-      if (!res) {
-        return mapValidatorErrors(validator.errors)
-      }
-
-      return undefined
   }
 
-  validateQueryParams(
-    path: string,
-    method: ValidatorHttpMethod,
-    params: URLSearchParams,
-    strict = true
-  ): ErrorObj[] | undefined {
+  validateRequestBody(path: string, method: ValidatorHttpMethod, data: unknown): ErrorObj[] | undefined {
+    const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
+      ?.validator
+    if (validator) {
+      return this.validateBody(validator, data)
+    } else {
+      throw new Error(`No request body validator found for '${method} ${path}'`)
+    }
+  }
+
+  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
+    const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
+    const res = validator(filteredData)
+
+    if (!res) {
+      return mapValidatorErrors(validator.errors)
+    }
+
+    return undefined
+  }
+
+  validateQueryParams(path: string, method: ValidatorHttpMethod, params: URLSearchParams, strict = true): ErrorObj[] | undefined {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
 
     let errResponse: ErrorObj[] = []
@@ -144,10 +146,7 @@ export class AjvOpenApiValidator implements OpenApiValidator {
         const paramDefinition = parameterDefinitions.splice(paramDefinitionIndex, 1)[0]
 
         const rejectEmptyValues = !(paramDefinition.param.allowEmptyValue === true)
-        if (
-          rejectEmptyValues &&
-          (value === undefined || value === null || String(value).trim() === '')
-        ) {
+        if (rejectEmptyValues && (value === undefined || value === null || String(value).trim() === '')) {
           errResponse.push({
             status: STATUS_BAD_REQUEST,
             code: `${EC_VALIDATION}-query-parameter`,
@@ -191,7 +190,6 @@ export class AjvOpenApiValidator implements OpenApiValidator {
   }
 
   private initialize(origSpec: OpenAPIV3.Document): void {
-
     const schemaCompileFailures: string[] = []
     const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() })
 
@@ -205,8 +203,8 @@ export class AjvOpenApiValidator implements OpenApiValidator {
         }
 
         this.validatorOpts.log(`Adding schema '#/components/schemas/${key}'`)
-        this.ajv.addSchema(schema, `#/components/schemas/${key}`,);
-      });
+        this.ajv.addSchema(schema, `#/components/schemas/${key}`)
+      })
     }
 
     if (spec.paths) {
@@ -225,7 +223,7 @@ export class AjvOpenApiValidator implements OpenApiValidator {
         for (const methodEntry of Object.entries(pathDetail)) {
           const method = methodEntry[0] as OpenAPIV3.HttpMethods
           const operation = methodEntry[1] as OpenAPIV3.OperationObject
-          
+
           if (operation.requestBody) {
             let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
 
@@ -257,9 +255,9 @@ export class AjvOpenApiValidator implements OpenApiValidator {
             if (schema) {
               const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/requestBody`
               this.validatorOpts.log(`Adding request body validator '${path}', '${method}' with schema '${schemaName}'`)
-              this.ajv.addSchema(schema, schemaName);
+              this.ajv.addSchema(schema, schemaName)
               const validator = this.ajv.compile({ $ref: schemaName })
-              this.requestBodyValidators.push({ path: path.toLowerCase(), method: method.toLowerCase() as ValidatorHttpMethod, validator})
+              this.requestBodyValidators.push({ path: path.toLowerCase(), method: method.toLowerCase() as ValidatorHttpMethod, validator })
             }
           }
 
@@ -297,16 +295,20 @@ export class AjvOpenApiValidator implements OpenApiValidator {
               if (schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/response/${key}`
                 this.validatorOpts.log(`Adding response body validator '${path}', '${method}', '${key}' with schema '${schemaName}'`)
-                this.ajv.addSchema(schema, schemaName);
+                this.ajv.addSchema(schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
-                this.responseBodyValidators.push({ path: path.toLowerCase(), method: method.toLowerCase() as ValidatorHttpMethod, status: key, validator})
+                this.responseBodyValidators.push({
+                  path: path.toLowerCase(),
+                  method: method.toLowerCase() as ValidatorHttpMethod,
+                  status: key,
+                  validator,
+                })
               }
             })
           }
-          
+
           if (operation.parameters) {
             operation.parameters.forEach((param) => {
-
               let resolvedParam: OpenAPIV3.ParameterObject | undefined
 
               if (isReferenceObject(param)) {
@@ -338,16 +340,25 @@ export class AjvOpenApiValidator implements OpenApiValidator {
               if (resolvedParam?.in === 'query' && resolvedParam.schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/parameters/${resolvedParam.name}`
                 this.validatorOpts.log(`Adding parameter validator '${path}', '${method}', '${resolvedParam.name}'`)
-                this.ajv.addSchema(resolvedParam.schema, schemaName);
+                this.ajv.addSchema(resolvedParam.schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
-                this.paramsValidators.push({ path: path.toLowerCase(), method: method.toLowerCase() as ValidatorHttpMethod, param: { name: resolvedParam.name?.toLowerCase(), required: resolvedParam.required, allowEmptyValue: resolvedParam.allowEmptyValue }, validator})
+                this.paramsValidators.push({
+                  path: path.toLowerCase(),
+                  method: method.toLowerCase() as ValidatorHttpMethod,
+                  param: {
+                    name: resolvedParam.name?.toLowerCase(),
+                    required: resolvedParam.required,
+                    allowEmptyValue: resolvedParam.allowEmptyValue,
+                  },
+                  validator,
+                })
               }
             })
           }
         }
       }
     }
-    
+
     if (this.validatorOpts.strict && schemaCompileFailures.length > 0) {
       throw new Error('The following schemas failed to compile: ' + schemaCompileFailures.join(', '))
     }

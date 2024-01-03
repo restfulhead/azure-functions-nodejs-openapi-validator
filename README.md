@@ -3,4 +3,6 @@
 Azurite start
 npm run watch
 
-TODO: eslint
+TODO: refactor hooks
+TODO: allow excluding paths
+TODO: options to log, throw, etc.

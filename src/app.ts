@@ -1,3 +1,3 @@
 export function setup(spec: string | object) {
-    console.log('Hello World')
+  console.log('Hello World' + spec)
 }
