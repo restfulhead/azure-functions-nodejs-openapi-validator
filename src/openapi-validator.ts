@@ -44,14 +44,12 @@ export interface ErrorObj {
   links?: { [key: string]: string }
 }
 
-export type ValidatorHttpMethod = 'get' | 'put' | 'post' | 'delete' | 'options' | 'head' | 'patch' | 'trace'
-
 export interface OpenApiValidator {
-  validateRequestBody(path: string, method: ValidatorHttpMethod, data: unknown): ErrorObj[] | undefined
+  validateRequestBody(path: string, method: string, data: unknown): ErrorObj[] | undefined
 
-  validateResponseBody(path: string, method: ValidatorHttpMethod, status: string, data: unknown): ErrorObj[] | undefined
+  validateResponseBody(path: string, method: string, status: string, data: unknown): ErrorObj[] | undefined
 
-  validateQueryParams(path: string, method: ValidatorHttpMethod, params: URLSearchParams, strict: boolean): ErrorObj[] | undefined
+  validateQueryParams(path: string, method: string, params: URLSearchParams, strict: boolean): ErrorObj[] | undefined
 }
 
 type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] }

@@ -55,8 +55,4 @@ export const DEFAULT_AJV_SETTINGS: Options = {
   discriminator: true,
   formats: AJV_FORMATS,
   coerceTypes: true,
-  // strict: false,
-  // strictNumbers: true,
-  // strictTuples: true,
-  // allowUnionTypes: false,
 }
