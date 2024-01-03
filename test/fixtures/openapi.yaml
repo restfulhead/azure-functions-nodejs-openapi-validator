@@ -179,12 +179,10 @@ components:
     PutUserRequest:
       type: object
       required:
-        - termsAndConditions
+        - name
       properties:
-        termsAndConditions:
-          type: array
-          items:
-            $ref: '#/components/schemas/PutUserResponse'
+        name:
+          type: string
 
     PutUserResponse:
       type: object
