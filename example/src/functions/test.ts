@@ -36,6 +36,8 @@ export function getUser(request: HttpRequest, context: InvocationContext): Promi
   return Promise.resolve({ body: JSON.stringify({ name: 'jane doe', id: '456' }) })
 }
 
+// TODO add many more test cases
+
 app.post('post-users', {
   route: 'users',
   authLevel: 'anonymous',
