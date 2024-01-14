@@ -18,6 +18,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN_PARAM }}
 
     - name: Setting up ${{ matrix.node-version }}
       uses: actions/setup-node@v3
@@ -40,9 +43,6 @@ jobs:
     - name: Release preview
       run: |
         npx auto shipit --dry-run
-        git config --global user.name 'Patrick Ruhkopf [bot]'
-        git config --global user.email 'restfulhead@users.noreply.github.com'
-        git push
         
       env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
