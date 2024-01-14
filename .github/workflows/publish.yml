@@ -11,6 +11,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN_PARAM }}
 
     - name: Setting up Node.js
       uses: actions/setup-node@v3
@@ -25,7 +28,11 @@ jobs:
       run: npm run build:prod
     
     - name: Publish
-      run: npx auto shipit
+      run: |
+        git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+        git config user.name "$GITHUB_ACTOR"
+        npx auto shipit
+        git push
       env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
