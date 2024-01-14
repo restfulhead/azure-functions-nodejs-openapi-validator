@@ -38,6 +38,11 @@ jobs:
       run: npm test
     
     - name: Release preview
-      run: npx auto shipit --dry-run
+      run: |
+        npx auto shipit --dry-run
+        git config --global user.name 'Patrick Ruhkopf [bot]'
+        git config --global user.email 'restfulhead@users.noreply.github.com'
+        git push
+        
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
