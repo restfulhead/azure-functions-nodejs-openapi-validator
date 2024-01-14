@@ -1,6 +1,6 @@
 {
   "name": "@restfulhead/azure-functions-nodejs-openapi-validator",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Azure Functions Node.js hooks for validating function invocations against an OpenAPI schema",
   "keywords": [
     "azure",

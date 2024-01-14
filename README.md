@@ -28,7 +28,7 @@ You can also take a look at [the example function app](example/src/functions/tes
 ## Configuration
 
 The `setupValidation` function takes in a number of configuration parameters that allow you to modify the behavior of this libary as well as
-[AJV](), that is used to perform the schema validation.
+[AJV](https://www.npmjs.com/package/ajv), that is used to perform the schema validation.
 
 By default, the hook returns a 400 error response with details about the validation error for request parameter and request body validation.
 Validation errors in the response body are only logged.

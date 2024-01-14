@@ -43,6 +43,5 @@ jobs:
     - name: Release preview
       run: |
         npx auto shipit --dry-run
-        
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
