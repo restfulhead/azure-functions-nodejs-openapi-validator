@@ -39,3 +39,5 @@ jobs:
     
     - name: Release preview
       run: npx auto shipit --dry-run
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
