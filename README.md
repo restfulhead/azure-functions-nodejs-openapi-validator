@@ -62,3 +62,7 @@ Then start Azurite via the `Azurite: Start` VSCode task.
 Build the library `npm run build` or use `npm run watch` to hotdeploy changes.
 
 Start the function app by running the VScode launch configuration "Attach to Node Functions".
+
+## License
+
+The scripts and documentation in this project are released under the [MIT License](LICENSE)

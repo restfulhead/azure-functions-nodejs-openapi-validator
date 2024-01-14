@@ -1,6 +1,6 @@
 {
   "name": "@restfulhead/azure-functions-nodejs-openapi-validator",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Azure Functions Node.js hooks for validating function invocations against an OpenAPI schema",
   "keywords": [
     "azure",
@@ -23,7 +23,7 @@
   },
   "scripts": {
     "build": "webpack --mode development",
-    "minify": "webpack --mode production",
+    "build:prod": "webpack --mode production",
     "test": "tsc -b test/tsconfig.json && rm -rf coverage && jest",
     "lint": "npm run lint:lib && npm run lint:test",
     "lint:lib": "eslint -c 'src/.eslintrc.js' './src/**/*.ts'",
@@ -61,5 +61,8 @@
     "webpack": "5.89.0",
     "webpack-cli": "5.1.4"
   },
+  "files": [
+    "dist"
+  ],
   "main": "./dist/azure-functions-nodejs-openapi-validator.js"
 }
