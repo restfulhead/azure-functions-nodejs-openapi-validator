@@ -1,25 +1,21 @@
-name: Build pull request
+name: Publish
 
 on:
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch: 
 
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [18.x]
-
     steps:
     - uses: actions/checkout@v3
 
-    - name: Setting up ${{ matrix.node-version }}
+    - name: Setting up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        node-version: 18
 
     - name: Install dependencies
       run: npm ci
@@ -27,3 +23,7 @@ jobs:
     - name: Build
       run: npm run build:prod
     
+    - name: Publish
+      run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

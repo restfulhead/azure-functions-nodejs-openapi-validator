@@ -44,6 +44,7 @@
     "@types/node": "^18.x",
     "@typescript-eslint/eslint-plugin": "6.16.0",
     "@typescript-eslint/parser": "6.16.0",
+    "auto": "^11.0.4",
     "eslint": "8.56.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-import-resolver-typescript": "3.6.1",
@@ -64,5 +65,34 @@
   "files": [
     "dist"
   ],
-  "main": "./dist/azure-functions-nodejs-openapi-validator.js"
+  "main": "./dist/azure-functions-nodejs-openapi-validator.js",
+  "auto": {
+    "labels": [
+      {
+        "name": "release-major",
+        "changelogTitle": "💥 Major Change",
+        "releaseType": "major"
+      },
+      {
+        "name": "release-minor",
+        "changelogTitle": "🚀 Enhancement",
+        "releaseType": "minor"
+      },
+      {
+        "name": "release-patch",
+        "changelogTitle": "🐛 Patch",
+        "releaseType": "patch"
+      },
+      {
+        "name": "release-internal",
+        "changelogTitle": "🔩 Internal",
+        "releaseType": "patch"
+      },
+      {
+        "name": "documentation",
+        "changelogTitle": "📝 Documentation",
+        "releaseType": "patch"
+      }
+    ]
+  }
 }

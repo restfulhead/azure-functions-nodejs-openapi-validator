@@ -3,6 +3,8 @@ name: Build pull request
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
 
 jobs:
   build:
@@ -19,6 +21,7 @@ jobs:
     - name: Setting up ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
+        cache: 'npm'
         node-version: ${{ matrix.node-version }}
 
     - name: Install dependencies
@@ -32,3 +35,6 @@ jobs:
 
     - name: Test
       run: npm test
+    
+    - name: Release preview
+      run: npx auto shipit --dry-run
