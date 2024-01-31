@@ -1,11 +1,15 @@
-# Azure Functions Open API specification validation
+# Azure Functions Open API v3 specification validation
 
-This library contains an Open API validator and an Azure Functions v4 hook that validates http function requests.
+This library contains an Open API v3 validator and an Azure Functions v4 hook that validates http function requests.
 
 It identifies the Azure function route and tries to find a matching route in the Open API specification. It then validates query parameters, 
 the request body and response body against the schema.
 
-(Note: This library does not validate the Open API specification itself. I suggest you use another tool for this for now.)
+## Caveats
+
+* Early version: Bugs most likely exist. Bug fixes welcome and more test cases very welcom. :-)
+* So far only tested with Open API specifications in v3
+* This library does not validate the Open API specification itself. I suggest you use another tool for this for now.
 
 ## Getting started
 
@@ -59,9 +63,12 @@ setupValidation(openApiSpec, {
 To run the example function app locally from VSCode, make sure to install the Azure Functions and Azurite extensions. 
 Then start Azurite via the `Azurite: Start` VSCode task.
 
-Build the library `npm run build` or use `npm run watch` to hotdeploy changes.
+Build the library `npm run build` or use `npm run watch` to hotdeploy changes. (Warning: This didn't always work for me in practice.)
 
-Start the function app by running the VScode launch configuration "Attach to Node Functions".
+Start the function app by running the VScode launch configuration `Debug Functions app`.
+
+Then send some requests to the API, for example: 
+`curl -X POST -H "Content-Type: application/json" -d '{"name":"hi"}' http://localhost:7071/api/users`
 
 ## License
 

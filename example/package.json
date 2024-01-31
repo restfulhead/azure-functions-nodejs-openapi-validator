@@ -13,7 +13,7 @@
     "test": "echo \"No tests yet...\""
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0",
+    "@azure/functions": "^4.2.0",
     "@restfulhead/azure-functions-nodejs-openapi-validator": "../src",
     "js-yaml": "^4.1.0"
   },

@@ -112,29 +112,12 @@ export function setupValidation(
 
           let parsedBody = undefined
           if (request.body) {
-            const textBody = await origRequest.text()
-            parsedBody = JSON.parse(textBody)
-
-            const headers: Record<string, string> = {}
-            origRequest.headers?.forEach((value, key) => {
-              headers[key] = value
-            })
-
-            const query: Record<string, string> = {}
-            origRequest.query?.forEach((value, key) => {
-              query[key] = value
-            })
-
             // a copy is necessary, because the request body can only be consumed once
             // see https://github.com/Azure/azure-functions-nodejs-library/issues/79#issuecomment-1875214147
-            request = new HttpRequest({
-              method: origRequest.method,
-              url: origRequest.url,
-              body: { string: textBody },
-              headers,
-              query,
-              params: origRequest.params,
-            })
+            request = origRequest.clone()
+
+            const textBody = await origRequest.text()
+            parsedBody = JSON.parse(textBody)
           }
 
           const reqBodyValResult = validator.validateRequestBody(
