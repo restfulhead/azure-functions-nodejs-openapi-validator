@@ -1,0 +1,28 @@
+module.exports = {
+    validateArgs: {
+      paths: {
+          '/foo': {
+              get: {
+                  parameters: [
+                      {
+                          in: 'query',
+                          name: 'foo',
+                          schema: {
+                            type: 'string',
+                            format: 'uuid',
+                          },
+                      },
+                  ],
+              }
+          }
+      },
+    },
+    request: {
+      route: 'foo',
+      query: {
+        foo: '0210a341-d7f9-4d5f-80e5-db5e8143ea12'
+      }
+    },
+  };
+  
+  

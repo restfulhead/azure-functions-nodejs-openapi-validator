@@ -45,13 +45,14 @@ interface TestFixture {
 
   requestOpts?: {
     strictQueryParamValidation?: boolean
+    strictRequestBodyValidation?: boolean
   }
 
   expectedErrors?: ErrorObj[]
 }
 
 // read all *.ts files from the fixtures directory
-const onlyInclude: string[] = ['accept-empty-body-when-body-is-not-required-and-body-schema-has-no-required-properties.js.txt'] // can be used to only run specific tests. for local testing only!
+const onlyInclude: string[] = [] // can be used to only run specific tests. for local testing only!
 const fixtureDir = `${__dirname}/../fixtures`
 const files = fs.readdirSync(fixtureDir)
 const testCases: { [key: string]: TestFixture } = {}
@@ -95,7 +96,8 @@ describe('The api validator', () => {
       const result = validator.validateRequestBody(
         `/${fixture.request.route ?? 'test'}`,
         fixture.request.method ?? 'post',
-        fixture.request.body
+        fixture.request.body,
+        fixture.requestOpts?.strictRequestBodyValidation ?? true
       )
       if (fixture.expectedErrors) {
         expect(result).toEqual(fixture.expectedErrors)
@@ -125,7 +127,12 @@ describe('The api validator', () => {
                 }
               }
               if (operation.requestBody && fixture.request.body) {
-                const result = validator.validateRequestBody(path, methodName, fixture.request.body)
+                const result = validator.validateRequestBody(
+                  path,
+                  methodName,
+                  fixture.request.body,
+                  fixture.requestOpts?.strictRequestBodyValidation ?? true
+                )
                 if (fixture.expectedErrors) {
                   expect(result).toEqual(fixture.expectedErrors)
                 } else {

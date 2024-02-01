@@ -1,0 +1,38 @@
+module.exports = {
+    validateArgs: {
+      paths: {
+          '/foo': {
+              get: {
+                  parameters: [
+                      {
+                          in: 'query',
+                          name: 'foo',
+                          schema: {
+                            type: 'string',
+                            format: 'uuid',
+                          },
+                      },
+                  ],
+              }
+          }
+      },
+    },
+    request: {
+      route: 'foo',
+      query: {
+        foo: 'hello'
+      }
+    },
+    expectedErrors: [
+        { 
+            code: 'Validation-format', 
+            source: { 
+                pointer: '#/paths/foo/get/parameters/foo/format'
+            }, 
+            status: 400, 
+            "title": 'must match format "uuid"'
+        }
+    ]
+  };
+  
+  

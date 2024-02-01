@@ -47,6 +47,10 @@ export const AJV_FORMATS = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return !isNaN(Date.parse(dateTimeString as any)) // any test that returns true/false
   },
+  uuid: (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(uuid)
+  },
 } as const
 
 export const DEFAULT_AJV_SETTINGS: Options = {
