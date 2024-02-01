@@ -29,6 +29,11 @@ interface TestFixture {
     schemas: {
       [key: string]: OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject
     }
+    components: {
+      schemas: {
+        [key: string]: OpenAPIV3.ReferenceObject | OpenAPIV3.SchemaObject
+      }
+    }
     paths: OpenAPIV3.PathsObject<any>
   }
   request: {
@@ -75,7 +80,7 @@ describe('The api validator', () => {
   test.each(Object.entries(testCases))('should %s', (name, fixture) => {
     const spec = copy(BASE_SPEC)
     spec.components!.parameters = fixture.validateArgs.parameters
-    spec.components!.schemas = fixture.validateArgs.schemas
+    spec.components!.schemas = fixture.validateArgs.components?.schemas ?? fixture.validateArgs.schemas
 
     if (fixture.validateArgs.paths) {
       spec.paths = fixture.validateArgs.paths

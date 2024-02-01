@@ -1,47 +1,101 @@
 module.exports = {
   validateArgs: {
-    parameters: [],
-    requestBody: {
-      description: 'a test body',
-      content: {
-        'application/json': {
-          schema: {
-            oneOf: [
-                { $ref: '#/components/schemas/Test1' }, 
-                { $ref: '#/components/schemas/Test2'}
-            ],
+  "paths": {
+    "/pets": {
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PetByAge"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PetByType"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PetByAge": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "age": {
+            "type": "integer"
           },
+          "nickname": {
+            "type": "string"
+          }
         },
+        "required": [
+          "age"
+        ]
       },
-    },
-    schemas: {
-        Test1: {
-            type: 'object',
-            required: ['foo'],
-            properties: {
-                foo: {
-                    type: 'string',
-                },
-            },
+      "PetByType": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "pet_type": {
+            "type": "string",
+            "enum": [
+              "Cat",
+              "Dog"
+            ]
+          },
+          "hunts": {
+            "type": "boolean"
+          }
         },
-        Test2: {
-            type: 'object',
-            required: ['boo'],
-            properties: {
-                boo: {
-                    type: 'string',
-                },
-            },
-        },
-    },
+        "required": [
+          "pet_type"
+        ]
+      }
+    }
+  }
   },
   request: {
     body: {
-      foo: 'hello',
-      boo: 'world',
+      "nickname": "Mr. Paws",
+      "hunts": false
     },
   },
   expectedErrors: [
-    {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Test1/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Test2/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-oneOf", "source": {"pointer": "#/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
+      {
+         "code": "Validation-required",
+         "source": {
+           "pointer": "#/components/schemas/PetByAge/required",
+         },
+         "status": 400,
+         "title": "must have required property 'age'",
+       },
+       {
+         "code": "Validation-required",
+         "source": {
+           "pointer": "#/components/schemas/PetByType/required",
+         },
+         "status": 400,
+         "title": "must have required property 'pet_type'",
+       },
+       {
+         "code": "Validation-anyOf",
+         "source": {
+           "pointer": "#/anyOf",
+         },
+         "status": 400,
+         "title": "must match a schema in anyOf",
+       },
   ]
 };

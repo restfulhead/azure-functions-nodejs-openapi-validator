@@ -1,43 +1,76 @@
 module.exports = {
   validateArgs: {
-    parameters: [],
-    requestBody: {
-      description: 'a test body',
-      content: {
-        'application/json': {
-          schema: {
-            oneOf: [
-                { $ref: '#/components/schemas/Test1' }, 
-                { $ref: '#/components/schemas/Test2'}
-            ],
+  "paths": {
+    "/pets": {
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PetByAge"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PetByType"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PetByAge": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "age": {
+            "type": "integer"
           },
+          "nickname": {
+            "type": "string"
+          }
         },
+        "required": [
+          "age"
+        ]
       },
-    },
-    schemas: {
-        Test1: {
-            type: 'object',
-            required: ['foo'],
-            properties: {
-                foo: {
-                    type: 'string',
-                },
-            },
+      "PetByType": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "pet_type": {
+            "type": "string",
+            "enum": [
+              "Cat",
+              "Dog"
+            ]
+          },
+          "hunts": {
+            "type": "boolean"
+          }
         },
-        Test2: {
-            type: 'object',
-            required: ['boo'],
-            properties: {
-                boo: {
-                    type: 'string',
-                },
-            },
-        },
-    },
+        "required": [
+          "pet_type"
+        ]
+      }
+    }
+  }
   },
   request: {
     body: {
-      boo: 'world',
+        "nickname": "Fido",
+        "pet_type": "Dog",
+        "age": 4
     },
   },
 };
