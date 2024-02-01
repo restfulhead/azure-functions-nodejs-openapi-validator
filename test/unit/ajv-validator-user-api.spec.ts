@@ -1,7 +1,7 @@
 import { loadSpec } from '../helpers/test-utils'
 import { AjvOpenApiValidator } from '../../src/ajv-openapi-validator'
 
-describe('The  api validator', () => {
+describe('The api validator for the user api spec', () => {
   let validator: AjvOpenApiValidator
 
   beforeAll(async () => {

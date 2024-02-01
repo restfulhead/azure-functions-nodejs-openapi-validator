@@ -106,6 +106,7 @@ export function setupValidation(
 
         if (
           requiredHookOpts.requestBodyValidationMode &&
+          request.headers.get('content-type')?.includes('application/json') &&
           (!exclusion || (exclusion.validation !== false && exclusion.validation.requestBody !== false))
         ) {
           context.debug(`Validating request body for '${path}', '${method}'`)

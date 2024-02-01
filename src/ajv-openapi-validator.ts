@@ -264,7 +264,7 @@ export class AjvOpenApiValidator {
                 if (spec.components?.requestBodies && spec.components?.requestBodies[requestBodyName]) {
                   const response = spec.components?.requestBodies[requestBodyName]
                   if (!isReferenceObject(response)) {
-                    schema = response.content['application/json']?.schema
+                    schema = this.getJsonContent(response.content)?.schema
                     required = !!response.required
                   } else {
                     errorStr = `A reference was not expected here: '${response.$ref}'`
@@ -278,9 +278,12 @@ export class AjvOpenApiValidator {
               if (errorStr && this.validatorOpts.strict) {
                 throw new Error(errorStr)
               }
-            } else if (operation.requestBody.content['application/json']) {
-              schema = operation.requestBody.content['application/json'].schema
-              required = !!operation.requestBody.required
+            } else {
+              const content = this.getJsonContent(operation.requestBody.content)
+              if (content) {
+                schema = content.schema
+                required = !!operation.requestBody.required
+              }
             }
 
             if (schema) {
@@ -313,7 +316,8 @@ export class AjvOpenApiValidator {
                   if (spec.components?.responses && spec.components?.responses[respName]) {
                     const response = spec.components?.responses[respName]
                     if (!isReferenceObject(response)) {
-                      schema = response.content ? response.content['application/json']?.schema : undefined
+                      const content = this.getJsonContent(response.content)
+                      schema = content ? content.schema : undefined
                     } else {
                       errorStr = `A reference was not expected here: '${response.$ref}'`
                     }
@@ -327,7 +331,7 @@ export class AjvOpenApiValidator {
                   throw new Error(errorStr)
                 }
               } else if (response.content) {
-                schema = response.content['application/json']?.schema
+                schema = this.getJsonContent(response.content)?.schema
               }
 
               if (schema) {
@@ -375,11 +379,14 @@ export class AjvOpenApiValidator {
               }
 
               // TODO could also add support for other parameters such as headers here
-              if (resolvedParam?.in === 'query' && resolvedParam.schema) {
+              if (resolvedParam?.in === 'query') {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/parameters/${resolvedParam.name}`
                 this.validatorOpts.log(`Adding parameter validator '${path}', '${method}', '${resolvedParam.name}'`)
-                this.ajv.addSchema(resolvedParam.schema, schemaName)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const schema = resolvedParam.schema ?? { type: (resolvedParam as any).type } // stricly speaking this isn't valid, but we support it
+                this.ajv.addSchema(schema ?? resolvedParam, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
+
                 this.paramsValidators.push({
                   path: path.toLowerCase(),
                   method: method.toLowerCase() as string,
@@ -399,6 +406,19 @@ export class AjvOpenApiValidator {
 
     if (this.validatorOpts.strict && schemaCompileFailures.length > 0) {
       throw new Error('The following schemas failed to compile: ' + schemaCompileFailures.join(', '))
+    }
+  }
+
+  private getJsonContent(content?: { [media: string]: OpenAPIV3.MediaTypeObject }): OpenAPIV3.MediaTypeObject | undefined {
+    if (!content) {
+      return undefined
+    } else if (content['application/json']) {
+      return content['application/json']
+    } else if (content['application/json; charset=utf-8']) {
+      return content['application/json; charset=utf-8']
+    } else {
+      const key = Object.keys(content).find((key) => key.toLowerCase().startsWith('application/json;'))
+      return key ? content[key] : undefined
     }
   }
 }

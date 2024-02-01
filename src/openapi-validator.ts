@@ -50,29 +50,15 @@ export interface DocWithCompSchemas extends OpenAPIV3.Document {
   components: WithRequired<OpenAPIV3.ComponentsObject, 'schemas'>
 }
 export function hasComponentSchemas(doc: OpenAPIV3.Document): doc is DocWithCompSchemas {
-  return doc.components?.schemas !== undefined
+  return doc.components?.schemas !== undefined && doc.components?.schemas !== null
 }
 
 export interface DocWithReqBodies extends OpenAPIV3.Document {
   components: WithRequired<OpenAPIV3.ComponentsObject, 'requestBodies'>
 }
 export function hasComponentRequestBodies(doc: OpenAPIV3.Document): doc is DocWithReqBodies {
-  return doc.components?.requestBodies !== undefined
+  return doc.components?.requestBodies !== undefined && doc.components?.requestBodies !== null
 }
-
-// export interface DocWithResponses extends OpenAPIV3.Document {
-//   components: WithRequired<OpenAPIV3.ComponentsObject, 'responses'>
-// }
-// export function hasComponentResponses(doc: OpenAPIV3.Document): doc is DocWithResponses {
-//   return doc.components?.responses !== undefined;
-// }
-
-// export interface DocWithParameters extends OpenAPIV3.Document {
-//   components: WithRequired<OpenAPIV3.ComponentsObject, 'parameters'>
-// }
-// export function hasComponentParameters(doc: OpenAPIV3.Document): doc is DocWithParameters {
-//   return doc.components?.parameters !== undefined;
-// }
 
 export function isReferenceObject(
   parameter: OpenAPIV3.ParameterObject | OpenAPIV3.SchemaObject | OpenAPIV3.RequestBodyObject | OpenAPIV3.ReferenceObject

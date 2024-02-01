@@ -9,6 +9,8 @@ the request body and response body against the schema.
 
 * Early version: Bugs most likely exist. Bug fixes welcome and more test cases very welcom. :-)
 * So far only tested with Open API specifications in v3
+* Does not (yet?) validate headers
+* Does not (really) validate path params, but supports them
 * This library does not validate the Open API specification itself. I suggest you use another tool for this for now.
 
 ## Getting started
@@ -70,6 +72,8 @@ Start the function app by running the VScode launch configuration `Debug Functio
 Then send some requests to the API, for example: 
 `curl -X POST -H "Content-Type: application/json" -d '{"name":"hi"}' http://localhost:7071/api/users`
 
-## License
+## License and Attribution
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
+
+Some of the validation test cases are based on the tests from [openapi-request-validator](`https://github.com/kogosoftwarellc/open-api/tree/main/packages/openapi-request-validator`) by Kogo Software LLC released under MIT.
