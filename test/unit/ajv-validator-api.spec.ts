@@ -51,6 +51,7 @@ interface TestFixture {
 }
 
 // read all *.ts files from the fixtures directory
+const onlyInclude: string[] = ['accept-empty-body-when-body-is-not-required-and-body-schema-has-no-required-properties.js.txt'] // can be used to only run specific tests. for local testing only!
 const fixtureDir = `${__dirname}/../fixtures`
 const files = fs.readdirSync(fixtureDir)
 const testCases: { [key: string]: TestFixture } = {}
@@ -58,8 +59,14 @@ for (const file of files) {
   if (file.endsWith('.js.txt')) {
     const testName = path.basename(file, '.js.txt').replace(/-/g, ' ')
     const fixtureContent = fs.readFileSync(path.resolve(fixtureDir, file), { encoding: 'utf-8' })
-    const fixture: TestFixture = eval(fixtureContent)
-    testCases[testName] = fixture
+    try {
+      const fixture: TestFixture = eval(fixtureContent)
+      if (!onlyInclude || onlyInclude.length === 0 || onlyInclude.includes(file)) {
+        testCases[testName] = fixture
+      }
+    } catch (e: any) {
+      throw new Error(`Error parsing fixture ${file}: ${e.message}`)
+    }
   }
 }
 
@@ -74,7 +81,7 @@ describe('The api validator', () => {
     } else {
       if (fixture.validateArgs.requestBody || fixture.validateArgs.parameters) {
         const operations: { [method in OpenAPIV3.HttpMethods]?: OpenAPIV3.OperationObject<any> } = {}
-        spec.paths[`/${fixture.request.route}` ?? '/test'] = operations
+        spec.paths[`/${fixture.request.route ?? 'test'}`] = operations
         operations[(fixture.request.method as OpenAPIV3.HttpMethods) ?? 'post'] = {
           requestBody: fixture.validateArgs.requestBody,
           responses: {},
@@ -86,7 +93,7 @@ describe('The api validator', () => {
 
     if (fixture.validateArgs.requestBody && fixture.request.body) {
       const result = validator.validateRequestBody(
-        `/${fixture.request.route}` ?? '/test',
+        `/${fixture.request.route ?? 'test'}`,
         fixture.request.method ?? 'post',
         fixture.request.body
       )

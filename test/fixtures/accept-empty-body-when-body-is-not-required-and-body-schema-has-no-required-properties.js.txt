@@ -1,0 +1,43 @@
+module.exports = {
+  validateArgs: {
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json; charset=utf-8': {
+          schema: {
+            properties: {
+                test1: {
+                    $ref: '#/components/schemas/Test1',
+                },
+                test2: {
+                    $ref: '#/components/schemas/Test2',
+                },
+            },
+          },
+        },
+      },
+    },
+    schemas:
+      {
+        Test1: {
+            type: 'object',
+            properties: {
+                foo: {
+                    type: 'string',
+                },
+            },
+        },
+        Test2: {
+            type: 'object',
+            properties: {
+                boo: {
+                    type: 'string',
+                },
+            },
+        },
+      },
+  },
+  request: {
+    body: {}
+  },
+};
