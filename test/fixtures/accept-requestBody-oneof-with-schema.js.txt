@@ -1,0 +1,68 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    "paths": {
+        "/pets": {
+            "patch": {
+                "requestBody": {
+                "content": {
+                    "application/json": {
+                    "schema": {
+                        "oneOf": [
+                        {
+                            "$ref": "#/components/schemas/Cat"
+                        },
+                        {
+                            "$ref": "#/components/schemas/Dog"
+                        }
+                        ]
+                    }
+                    }
+                }
+                },
+                "responses": {
+                "200": {
+                    "description": "Updated"
+                }
+                }
+            }
+        }
+    },
+    "schemas": {
+      "Dog": {
+        "type": "object",
+        "properties": {
+          "bark": {
+            "type": "boolean"
+          },
+          "breed": {
+            "type": "string",
+            "enum": [
+              "Dingo",
+              "Husky",
+              "Retriever",
+              "Shepherd"
+            ]
+          }
+        }
+      },
+      "Cat": {
+        "type": "object",
+        "properties": {
+          "hunts": {
+            "type": "boolean"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+  },
+  request: {
+    body: {
+        "bark": true,
+        "breed": "Dingo" 
+    },
+  },
+};

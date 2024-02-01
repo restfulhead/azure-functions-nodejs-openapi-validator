@@ -1,0 +1,35 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              foo: {
+                allOf: [{ type: 'string' }],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  request: {
+    body: {
+      foo: null,
+    },
+  },
+    expectedErrors: [
+    {
+        status: 400,
+        code: 'Validation-type',
+        "source": {
+            "pointer": "#/paths/test/post/requestBody/properties/foo/type"
+        },
+        title: "must be string"
+    }
+  ],
+};

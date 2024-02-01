@@ -1,0 +1,46 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            allOf: [
+                { $ref: '#/components/schemas/Test1' }, 
+                { $ref: '#/components/schemas/Test2'}
+            ],
+          },
+        },
+      },
+    },
+    schemas: {
+        Test1: {
+            type: 'object',
+            required: ['foo'],
+            properties: {
+                foo: {
+                    type: 'string',
+                },
+            },
+        },
+        Test2: {
+            type: 'object',
+            required: ['boo'],
+            properties: {
+                boo: {
+                    type: 'string',
+                },
+            },
+        },
+    },
+  },
+  request: {
+    body: {
+      foo: 'hello',
+    },
+  },
+  expectedErrors: [
+    {"code": "Validation-required", "source": {"pointer": "#/paths/test/post/requestBody/required"}, "status": 400, "title": "must have required property 'boo'"}
+  ]
+};

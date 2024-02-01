@@ -1,0 +1,47 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            oneOf: [
+                { $ref: '#/components/schemas/Test1' }, 
+                { $ref: '#/components/schemas/Test2'}
+            ],
+          },
+        },
+      },
+    },
+    schemas: {
+        Test1: {
+            type: 'object',
+            required: ['foo'],
+            properties: {
+                foo: {
+                    type: 'string',
+                },
+            },
+        },
+        Test2: {
+            type: 'object',
+            required: ['boo'],
+            properties: {
+                boo: {
+                    type: 'string',
+                },
+            },
+        },
+    },
+  },
+  request: {
+    body: {
+      foo: 'hello',
+      boo: 'world',
+    },
+  },
+  expectedErrors: [
+    {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Test1/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Test2/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-oneOf", "source": {"pointer": "#/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
+  ]
+};

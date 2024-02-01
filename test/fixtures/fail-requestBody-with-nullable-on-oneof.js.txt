@@ -1,0 +1,28 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              foo: {
+                oneOf: [{ type: 'string' }, { type: 'boolean' }],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  request: {
+    body: {
+      foo: null,
+    },
+  },
+  expectedErrors: [
+   {"code": "Validation-type", "source": {"pointer": "#/paths/test/post/requestBody/properties/foo/oneOf/0/type"}, "status": 400, "title": "must be string"}, {"code": "Validation-type", "source": {"pointer": "#/paths/test/post/requestBody/properties/foo/oneOf/1/type"}, "status": 400, "title": "must be boolean"}, {"code": "Validation-oneOf", "source": {"pointer": "#/paths/test/post/requestBody/properties/foo/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
+   ]
+};

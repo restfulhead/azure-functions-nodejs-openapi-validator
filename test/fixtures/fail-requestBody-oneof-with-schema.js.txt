@@ -1,0 +1,71 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    "paths": {
+        "/pets": {
+            "patch": {
+                "requestBody": {
+                "content": {
+                    "application/json": {
+                    "schema": {
+                        "oneOf": [
+                        {
+                            "$ref": "#/components/schemas/Cat"
+                        },
+                        {
+                            "$ref": "#/components/schemas/Dog"
+                        }
+                        ]
+                    }
+                    }
+                }
+                },
+                "responses": {
+                "200": {
+                    "description": "Updated"
+                }
+                }
+            }
+        }
+    },
+    "schemas": {
+      "Dog": {
+        "type": "object",
+        "properties": {
+          "bark": {
+            "type": "boolean"
+          },
+          "breed": {
+            "type": "string",
+            "enum": [
+              "Dingo",
+              "Husky",
+              "Retriever",
+              "Shepherd"
+            ]
+          }
+        }
+      },
+      "Cat": {
+        "type": "object",
+        "properties": {
+          "hunts": {
+            "type": "boolean"
+          },
+          "age": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+  },
+  request: {
+    body: {
+        "age": 2,
+        "breed": "Dingo" 
+    },
+  },
+  expectedErrors: [
+    {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Cat/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Dog/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-oneOf", "source": {"pointer": "#/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
+  ]
+};

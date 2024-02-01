@@ -1,0 +1,30 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              foo: {
+                anyOf: [{ type: 'string' }, { type: 'boolean' }],
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  request: {
+    body: {
+      foo: null,
+    },
+  },
+  expectedErrors: [
+    {"status":400,"code":"Validation-type","title":"must be string","source":{"pointer":"#/paths/test/post/requestBody/properties/foo/anyOf/0/type"}},
+    {"status":400,"code":"Validation-type","title":"must be boolean","source":{"pointer":"#/paths/test/post/requestBody/properties/foo/anyOf/1/type"}},
+    {"status":400,"code":"Validation-anyOf","title":"must match a schema in anyOf","source":{"pointer":"#/paths/test/post/requestBody/properties/foo/anyOf"}}
+  ]
+};
