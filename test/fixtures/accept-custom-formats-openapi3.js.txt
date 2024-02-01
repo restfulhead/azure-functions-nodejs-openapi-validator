@@ -6,9 +6,11 @@ module.exports = {
                 parameters: [
                     {
                         in: 'query',
-                        name: 'foo',
-                        type: 'string',
-                        required: true,
+                        name: 'startDate',
+                        schema: {
+                            type: 'string',
+                            format: 'date-time',
+                        },
                     },
                 ],
             }
@@ -18,12 +20,8 @@ module.exports = {
   request: {
     path: 'foo',
     query: {
-      foo: 'asdf',
-      additional1: 'bbbbb',
+      startDate: '2024-02-01T01:34:03.001Z',
     }
   },
-  requestOpts: {
-    strictQueryParamValidation: false
-  }
 };
 

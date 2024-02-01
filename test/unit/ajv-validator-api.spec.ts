@@ -33,12 +33,9 @@ interface TestFixture {
   }
   request: {
     method?: string
-    path?: string
+    route?: string
     body?: unknown
     params?: {
-      [key: string]: string
-    }
-    headers?: {
       [key: string]: string
     }
     query?: {
@@ -77,7 +74,7 @@ describe('The api validator', () => {
     } else {
       if (fixture.validateArgs.requestBody || fixture.validateArgs.parameters) {
         const operations: { [method in OpenAPIV3.HttpMethods]?: OpenAPIV3.OperationObject<any> } = {}
-        spec.paths[fixture.request.path ?? '/test'] = operations
+        spec.paths[`/${fixture.request.route}` ?? '/test'] = operations
         operations[(fixture.request.method as OpenAPIV3.HttpMethods) ?? 'post'] = {
           requestBody: fixture.validateArgs.requestBody,
           responses: {},
@@ -88,7 +85,11 @@ describe('The api validator', () => {
     const validator = new AjvOpenApiValidator(spec)
 
     if (fixture.validateArgs.requestBody && fixture.request.body) {
-      const result = validator.validateRequestBody(fixture.request.path ?? '/test', fixture.request.method ?? 'post', fixture.request.body)
+      const result = validator.validateRequestBody(
+        `/${fixture.request.route}` ?? '/test',
+        fixture.request.method ?? 'post',
+        fixture.request.body
+      )
       if (fixture.expectedErrors) {
         expect(result).toEqual(fixture.expectedErrors)
       } else {
@@ -117,11 +118,7 @@ describe('The api validator', () => {
                 }
               }
               if (operation.requestBody && fixture.request.body) {
-                const result = validator.validateRequestBody(
-                  fixture.request.path ?? '/test',
-                  fixture.request.method ?? 'post',
-                  fixture.request.body
-                )
+                const result = validator.validateRequestBody(path, methodName, fixture.request.body)
                 if (fixture.expectedErrors) {
                   expect(result).toEqual(fixture.expectedErrors)
                 } else {

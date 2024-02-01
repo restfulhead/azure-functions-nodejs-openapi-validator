@@ -1,0 +1,37 @@
+module.exports = {
+  validateArgs: {
+    paths: {
+        '/foo': {
+            get: {
+                parameters: [
+                    {
+                        in: 'query',
+                        name: 'startDate',
+                        schema: {
+                            type: 'string',
+                            format: 'date-time',
+                        },
+                    },
+                ],
+            }
+        }
+    },
+  },
+  request: {
+    path: 'foo',
+    query: {
+      startDate: 'hello',
+    }
+  },
+  expectedErrors: [
+    { 
+        code: 'Validation-format', 
+        source: { 
+            pointer: '#/paths/foo/get/parameters/startDate/format'
+        }, 
+        status: 400, 
+        "title": 'must match format "date-time"'
+    }
+  ]
+};
+

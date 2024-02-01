@@ -8,7 +8,7 @@ module.exports = {
                         in: 'query',
                         name: 'foo',
                         type: 'string',
-                        required: true,
+                        required: false,
                     },
                 ],
             }
@@ -17,13 +17,7 @@ module.exports = {
   },
   request: {
     path: 'foo',
-    query: {
-      foo: 'asdf',
-      additional1: 'bbbbb',
-    }
-  },
-  requestOpts: {
-    strictQueryParamValidation: false
+    query: { }
   }
 };
 
