@@ -13,7 +13,11 @@ the request body and response body against the schema.
 * Does not support external schemas (inline schemas are supported)
 * Does not (yet?) validate headers
 * Does not (really) validate path params, but supports them in the definition and request route
+* Does not support references to properties (e.g. `$ref: '#/components/schemas/Test1/properties/bar/allOf/0/properties/baz'`)
+* Does not support `readOnly` or `writeOnly`.
 * This library does not validate the Open API specification itself. I suggest you use another tool for this for now.
+
+To check out what is supported, take a look at the [test fixtures](/test/fixtures/)
 
 ## Getting started
 

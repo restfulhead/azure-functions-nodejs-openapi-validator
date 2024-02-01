@@ -1,0 +1,37 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              foo: {
+                type: 'string',
+                enum: ['HOME', 'CAR'],
+              },
+            },
+          },
+        },
+      },
+    },
+    schemas: null,
+  },
+  request: {
+    body: {
+      foo: 'wrong',
+    },
+  },
+  expectedErrors: [
+    { 
+        code: 'Validation-enum', 
+        source: { 
+            pointer: "#/paths/test/post/requestBody/properties/foo/enum"
+        }, 
+        status: 400, 
+        title: 'must be equal to one of the allowed values'
+    }
+  ]
+};

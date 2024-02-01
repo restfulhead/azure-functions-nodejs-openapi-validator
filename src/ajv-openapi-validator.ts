@@ -2,6 +2,7 @@
 /* eslint-disable no-invalid-this */
 import AjvDraft4 from 'ajv-draft-04'
 import Ajv, { ErrorObject, ValidateFunction, Options } from 'ajv'
+import addFormats from 'ajv-formats'
 import { OpenAPIV3 } from 'openapi-types'
 import {
   convertDatesToISOString,
@@ -14,7 +15,7 @@ import {
   hasComponentSchemas,
   isReferenceObject,
 } from './openapi-validator'
-import { DEFAULT_AJV_SETTINGS } from './ajv-opts'
+import { AjvExtras, DEFAULT_AJV_EXTRAS, DEFAULT_AJV_SETTINGS } from './ajv-opts'
 import { merge, openApiMergeRules } from 'allof-merge'
 
 const REQ_BODY_COMPONENT_PREFIX_LENGTH = 27 // #/components/requestBodies/PetBody
@@ -83,10 +84,25 @@ export class AjvOpenApiValidator {
    * @param spec - Parsed OpenAPI V3 specification
    * @param ajvOpts - Optional Ajv options
    * @param validatorOpts - Optional additional validator options
+   * @param ajvExtras - Optional additional Ajv features
    */
-  constructor(spec: OpenAPIV3.Document, validatorOpts?: ValidatorOpts, ajvOpts: Options = DEFAULT_AJV_SETTINGS) {
+  constructor(
+    spec: OpenAPIV3.Document,
+    validatorOpts?: ValidatorOpts,
+    ajvOpts: Options = DEFAULT_AJV_SETTINGS,
+    ajvExtras: AjvExtras = DEFAULT_AJV_EXTRAS
+  ) {
     // always disable removeAdditional, because it has unexpected results with allOf
     this.ajv = new AjvDraft4({ ...DEFAULT_AJV_SETTINGS, ...ajvOpts, removeAdditional: false })
+    if (ajvExtras?.addStandardFormats === true) {
+      addFormats(this.ajv)
+    }
+    if (ajvExtras?.customKeywords) {
+      ajvExtras.customKeywords.forEach((kwd) => {
+        this.ajv.addKeyword(kwd)
+      })
+    }
+
     this.validatorOpts = validatorOpts ? { ...DEFAULT_VALIDATOR_OPTS, ...validatorOpts } : DEFAULT_VALIDATOR_OPTS
     if (this.validatorOpts.log == undefined) {
       this.validatorOpts.log = () => {}

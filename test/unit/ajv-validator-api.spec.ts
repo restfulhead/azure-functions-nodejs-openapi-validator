@@ -62,7 +62,7 @@ for (const file of files) {
     const fixtureContent = fs.readFileSync(path.resolve(fixtureDir, file), { encoding: 'utf-8' })
     try {
       const fixture: TestFixture = eval(fixtureContent)
-      if (!onlyInclude || onlyInclude.length === 0 || onlyInclude.includes(file)) {
+      if (!onlyInclude || onlyInclude.length === 0 || onlyInclude.find((name) => file.includes(name))) {
         testCases[testName] = fixture
       }
     } catch (e: any) {

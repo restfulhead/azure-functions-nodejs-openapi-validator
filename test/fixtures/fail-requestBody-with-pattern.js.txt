@@ -1,0 +1,36 @@
+module.exports = {
+  validateArgs: {
+    parameters: [],
+    requestBody: {
+      description: 'a test body',
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            properties: {
+              foo: {
+                type: 'string',
+                pattern: "[abc]+"
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  request: {
+    body: {
+      foo: "z",
+    },
+  },
+  expectedErrors: [
+    { 
+        code: 'Validation-pattern', 
+        source: { 
+            pointer: "#/paths/test/post/requestBody/properties/foo/pattern"
+        }, 
+        status: 400, 
+        title: 'must match pattern "[abc]+"'
+    }
+  ]
+};
