@@ -7,13 +7,17 @@ module.exports = {
                     {
                         in: 'path',
                         name: 'path1',
-                        type: 'string',
+                        schema: {
+                          type: 'string',
+                        },
                         required: true,
                     },
                     {
                         in: 'query',
                         name: 'foo',
-                        type: 'string',
+                        schema: {
+                          type: 'string',
+                        },
                         required: true,
                     },
                 ],

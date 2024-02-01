@@ -7,7 +7,9 @@ module.exports = {
                     {
                         in: 'query',
                         name: 'foo',
-                        type: 'string',
+                        schema: {
+                            type: 'string',
+                        },
                         required: false,
                     },
                 ],

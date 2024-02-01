@@ -379,12 +379,10 @@ export class AjvOpenApiValidator {
               }
 
               // TODO could also add support for other parameters such as headers here
-              if (resolvedParam?.in === 'query') {
+              if (resolvedParam?.in === 'query' && resolvedParam.schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/parameters/${resolvedParam.name}`
                 this.validatorOpts.log(`Adding parameter validator '${path}', '${method}', '${resolvedParam.name}'`)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const schema = resolvedParam.schema ?? { type: (resolvedParam as any).type } // stricly speaking this isn't valid, but we support it
-                this.ajv.addSchema(schema ?? resolvedParam, schemaName)
+                this.ajv.addSchema(resolvedParam.schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
 
                 this.paramsValidators.push({
