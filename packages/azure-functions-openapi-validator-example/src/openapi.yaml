@@ -32,6 +32,17 @@ paths:
           $ref: '#/components/responses/ResponseError'
         '500':
           $ref: '#/components/responses/ResponseError'
+    get:
+      parameters:
+        - name: page
+          in: query
+          description: >
+            Use the `page[offset]` and `page[limit]` parameters to paginate through the results.
+          schema:
+            $ref: '#/components/schemas/PageParam'
+          style: deepObject
+          explode: true
+          required: true
   '/users/{uid}':
     get:
       parameters:

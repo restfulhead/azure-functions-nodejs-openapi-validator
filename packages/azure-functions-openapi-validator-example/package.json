@@ -3,13 +3,20 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc",
+    "clean": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "prebuild": "npm run clean",
+    "build": "tsc -b",
+    "build:fast": "tsc -b --incremental",
     "watch": "tsc -w",
-    "clean": "rimraf dist",
-    "lint": "eslint -c '.eslintrc.js' './src/**/*.ts'",
     "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "echo \"No tests yet...\""
+    "test": "echo \"No tests yet...\"",
+    "lint": "npm run lint:src && npm run lint:test",
+    "lint:src": "eslint -c '.eslintrc.js' './src/**/*.ts'",
+    "lint:test": "echo \"No tests yet...\"",
+    "lint:fix": "npm run lint:fix:src && npm run lint:fix:test",
+    "lint:fix:src": "eslint --fix -c '.eslintrc.js' './src/**/*.ts'",
+    "lint:fix:test": "echo \"No tests yet...\""
   },
   "dependencies": {
     "@azure/functions": "^4.2.0",

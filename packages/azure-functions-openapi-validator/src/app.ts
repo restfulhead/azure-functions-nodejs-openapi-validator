@@ -2,7 +2,13 @@ import { app } from '@azure/functions'
 import { OpenAPIV3 } from 'openapi-types'
 import { DEFAULT_HOOK_OPTIONS, ValidatorHookOptions, configureValidationPreInvocationHandler } from './validation-hook-setup'
 import Ajv, { Options } from 'ajv'
-import { AjvOpenApiValidator, DEFAULT_AJV_SETTINGS, DEFAULT_VALIDATOR_OPTS, ValidatorOpts, createAjvInstance } from '@restfulhead/ajv-openapi-request-response-validator'
+import {
+  AjvOpenApiValidator,
+  DEFAULT_AJV_SETTINGS,
+  DEFAULT_VALIDATOR_OPTS,
+  ValidatorOpts,
+  createAjvInstance,
+} from '@restfulhead/ajv-openapi-request-response-validator'
 
 function isAjvInstance(ajv: undefined | Options | Ajv): ajv is Ajv {
   return ajv !== undefined && (ajv as Ajv).addSchema !== undefined

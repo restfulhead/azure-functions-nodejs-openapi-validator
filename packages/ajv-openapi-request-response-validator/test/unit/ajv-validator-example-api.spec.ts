@@ -6,7 +6,7 @@ describe('The api validator for the user api spec', () => {
   let validator: AjvOpenApiValidator
 
   beforeAll(async () => {
-    const spec = await loadSpec()
+    const spec = await loadSpec('example-api.yaml')
     const ajv = createAjvInstance()
     validator = new AjvOpenApiValidator(spec, ajv)
   })

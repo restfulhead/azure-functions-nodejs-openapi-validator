@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable no-invalid-this */
 import Ajv, { ErrorObject, ValidateFunction } from 'ajv'
-import OpenapiRequestCoercer from './request-coercer'
-import { dummyLogger } from 'ts-log';
+import OpenapiRequestCoercer from 'openapi-request-coercer'
+import { dummyLogger } from 'ts-log'
 import { OpenAPIV3 } from 'openapi-types'
 import {
   convertDatesToISOString,
@@ -15,7 +15,7 @@ import {
   hasComponentSchemas,
   isValidReferenceObject,
   Primitive,
-  isURLSearchParams
+  isURLSearchParams,
 } from './openapi-validator'
 import { merge, openApiMergeRules } from 'allof-merge'
 
@@ -88,7 +88,7 @@ export class AjvOpenApiValidator {
   constructor(
     spec: OpenAPIV3.Document,
     private ajv: Ajv,
-    validatorOpts?: ValidatorOpts,
+    validatorOpts?: ValidatorOpts
   ) {
     this.validatorOpts = validatorOpts ? { ...DEFAULT_VALIDATOR_OPTS, ...validatorOpts } : DEFAULT_VALIDATOR_OPTS
     if (this.validatorOpts.logger == undefined) {
@@ -98,16 +98,25 @@ export class AjvOpenApiValidator {
     this.initialize(spec, this.validatorOpts.coerceTypes)
   }
 
-
-  validateQueryParams(path: string, method: string, origParams: Record<string, Primitive> | URLSearchParams, strict = true): ErrorObj[] | undefined {
+  validateQueryParams(
+    path: string,
+    method: string,
+    origParams: Record<string, Primitive> | URLSearchParams,
+    strict = true
+  ): ErrorObj[] | undefined {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
 
     let errResponse: ErrorObj[] = []
 
-    let params = isURLSearchParams(origParams) ? Array.from(origParams.entries()).reduce((acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    }, {} as Record<string, Primitive> ) : origParams
+    let params = isURLSearchParams(origParams)
+      ? Array.from(origParams.entries()).reduce(
+          (acc, [key, value]) => {
+            acc[key] = value
+            return acc
+          },
+          {} as Record<string, Primitive>
+        )
+      : origParams
 
     if (this.requestCoercer) {
       params = this.unserializeParameters(params)
@@ -234,8 +243,6 @@ export class AjvOpenApiValidator {
 
     return undefined
   }
-
-  
 
   private initialize(origSpec: OpenAPIV3.Document, coerceTypes: boolean): void {
     const schemaCompileFailures: string[] = []
@@ -364,7 +371,9 @@ export class AjvOpenApiValidator {
 
               if (schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/response/${key}`
-                this.validatorOpts.logger.info(`Adding response body validator '${path}', '${method}', '${key}' with schema '${schemaName}'`)
+                this.validatorOpts.logger.info(
+                  `Adding response body validator '${path}', '${method}', '${key}' with schema '${schemaName}'`
+                )
                 this.ajv.addSchema(schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
                 this.responseBodyValidators.push({
@@ -427,8 +436,8 @@ export class AjvOpenApiValidator {
                   },
                   validator,
                 })
-                
-                if (isValidReferenceObject(resolvedParam.schema)) {
+
+                if (coerceTypes && isValidReferenceObject(resolvedParam.schema)) {
                   const fullyResolved = this.fullyResolveParameter(spec, resolvedParam)
                   if (fullyResolved) {
                     resolvedParams.push(fullyResolved)
@@ -438,13 +447,12 @@ export class AjvOpenApiValidator {
                 }
               }
             })
-          
+
             if (this.validatorOpts.coerceTypes == true && resolvedParams.length > 0) {
               this.requestCoercer = new OpenapiRequestCoercer({
                 logger: this.validatorOpts.logger,
                 enableObjectCoercion: true,
                 parameters: resolvedParams,
-                
               })
             }
           }
@@ -470,18 +478,21 @@ export class AjvOpenApiValidator {
     }
   }
 
-  
-    
-  private resolveRef(document: OpenAPIV3.Document, ref: string): any {  
-    const pathParts = ref.split('/');  
-    
-    return pathParts.reduce((current: any, part) => {  
-      if (part === '#' || part === '') return current;  
-      return current ? current[part] : undefined;  
-    }, document);  
-  }  
-    
-  private fullyResolveSchemaRefs(document: OpenAPIV3.Document, schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject, visited: Map<string, OpenAPIV3.SchemaObject> = new Map<string, OpenAPIV3.SchemaObject>()): OpenAPIV3.SchemaObject | undefined {
+  private resolveRef(document: OpenAPIV3.Document, ref: string): OpenAPIV3.SchemaObject {
+    const pathParts = ref.split('/')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return pathParts.reduce((current: any, part) => {
+      if (part === '#' || part === '') return current
+      return current ? current[part] : undefined
+    }, document)
+  }
+
+  private fullyResolveSchemaRefs(
+    document: OpenAPIV3.Document,
+    schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject,
+    visited: Map<string, OpenAPIV3.SchemaObject> = new Map<string, OpenAPIV3.SchemaObject>()
+  ): OpenAPIV3.SchemaObject | undefined {
     if (typeof schema !== 'object') {
       return undefined
     }
@@ -492,53 +503,58 @@ export class AjvOpenApiValidator {
         return resolved
       }
     }
-    
+
     let resolvedSchema
-    if (isValidReferenceObject(schema)) {  
-      resolvedSchema = this.resolveRef(document, schema.$ref) as OpenAPIV3.SchemaObject;
-      visited.set(schema.$ref, resolvedSchema);
+    if (isValidReferenceObject(schema)) {
+      resolvedSchema = this.resolveRef(document, schema.$ref) as OpenAPIV3.SchemaObject
+      visited.set(schema.$ref, resolvedSchema)
     } else {
       resolvedSchema = schema
     }
-    
-    for (const key in resolvedSchema) {  
-      if (typeof resolvedSchema[key as keyof OpenAPIV3.SchemaObject] === 'object') {
-        resolvedSchema[key as keyof OpenAPIV3.SchemaObject] = this.fullyResolveSchemaRefs(document, resolvedSchema[key as keyof OpenAPIV3.SchemaObject], visited);  
-      }  
-    }
-    
-    return resolvedSchema;  
-  }
-    
-  private fullyResolveParameter(document: OpenAPIV3.Document, parameter: OpenAPIV3.ParameterObject): OpenAPIV3.ParameterObject | undefined {  
-    if (!parameter.schema || typeof parameter.schema !== 'object' || !isValidReferenceObject(parameter.schema)) {  
-      return parameter;  
-    }  
-    
-    return { ...parameter, schema: this.fullyResolveSchemaRefs(document, parameter.schema) };
-  }  
 
-  private unserializeParameters(parameters: Record<string, Primitive>): Record<string, any> {  
-    const result: Record<string, any> = {};
-    for (const key in parameters) {
-      const value = parameters[key];
-        let target = result;  
-        const splitKey = key.split('[');  
-        const lastKeyIndex = splitKey.length - 1;  
-  
-        splitKey.forEach((part, index) => {  
-            const cleanPart = part.replace(']', '');  
-  
-            if (index === lastKeyIndex) {  
-                target[cleanPart] = typeof value === 'string' ? decodeURIComponent(value) : value // TODO is the decode necesary?
-            } else {  
-                if (!target[cleanPart]) target[cleanPart] = {};  
-                target = target[cleanPart];  
-            }  
-        });  
+    for (const key in resolvedSchema) {
+      if (typeof resolvedSchema[key as keyof OpenAPIV3.SchemaObject] === 'object') {
+        resolvedSchema[key as keyof OpenAPIV3.SchemaObject] = this.fullyResolveSchemaRefs(
+          document,
+          resolvedSchema[key as keyof OpenAPIV3.SchemaObject],
+          visited
+        )
+      }
     }
-  
-    return result;  
+
+    return resolvedSchema
   }
-  
+
+  private fullyResolveParameter(document: OpenAPIV3.Document, parameter: OpenAPIV3.ParameterObject): OpenAPIV3.ParameterObject | undefined {
+    if (!parameter.schema || typeof parameter.schema !== 'object' || !isValidReferenceObject(parameter.schema)) {
+      return parameter
+    }
+
+    return { ...parameter, schema: this.fullyResolveSchemaRefs(document, parameter.schema) }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private unserializeParameters(parameters: Record<string, Primitive>): Record<string, any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: Record<string, any> = {}
+    for (const key in parameters) {
+      const value = parameters[key]
+      let target = result
+      const splitKey = key.split('[')
+      const lastKeyIndex = splitKey.length - 1
+
+      splitKey.forEach((part, index) => {
+        const cleanPart = part.replace(']', '')
+
+        if (index === lastKeyIndex) {
+          target[cleanPart] = value
+        } else {
+          if (!target[cleanPart]) target[cleanPart] = {}
+          target = target[cleanPart]
+        }
+      })
+    }
+
+    return result
+  }
 }

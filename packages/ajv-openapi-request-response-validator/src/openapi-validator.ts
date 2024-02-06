@@ -1,5 +1,5 @@
 import { OpenAPIV3 } from 'openapi-types'
-import { Logger } from 'ts-log';
+import { Logger } from 'ts-log'
 export const STATUS_BAD_REQUEST = 400
 export const EC_VALIDATION = 'Validation'
 export const ET_VALIDATION = 'Validation failed'
@@ -64,7 +64,11 @@ export function hasComponentRequestBodies(doc: OpenAPIV3.Document): doc is DocWi
 export function isValidReferenceObject(
   parameter: OpenAPIV3.ParameterObject | OpenAPIV3.SchemaObject | OpenAPIV3.RequestBodyObject | OpenAPIV3.ReferenceObject
 ): parameter is OpenAPIV3.ReferenceObject {
-  return (parameter as OpenAPIV3.ReferenceObject).$ref !== undefined && (parameter as OpenAPIV3.ReferenceObject).$ref !== null && (parameter as OpenAPIV3.ReferenceObject).$ref.includes('/')
+  return (
+    (parameter as OpenAPIV3.ReferenceObject).$ref !== undefined &&
+    (parameter as OpenAPIV3.ReferenceObject).$ref !== null &&
+    (parameter as OpenAPIV3.ReferenceObject).$ref.includes('/')
+  )
 }
 
 export function isURLSearchParams(params: Record<string, Primitive> | URLSearchParams): params is URLSearchParams {

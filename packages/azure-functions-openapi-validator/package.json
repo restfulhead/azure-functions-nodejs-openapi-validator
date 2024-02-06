@@ -26,13 +26,16 @@
     "prebuild": "npm run clean",
     "build": "tsc -b",
     "build:fast": "tsc -b --incremental",
+    "watch": "tsc -w",
     "test": "tsc -b test/tsconfig.json && rm -rf coverage && jest",
-    "lint": "npm run lint:lib && npm run lint:test",
-    "lint:lib": "eslint -c 'src/.eslintrc.js' './src/**/*.ts'",
+    "lint": "npm run lint:src && npm run lint:test",
+    "lint:src": "eslint -c 'src/.eslintrc.js' './src/**/*.ts'",
     "lint:test": "eslint -c 'test/.eslintrc.js' './test/**/*.ts'",
+    "lint:fix": "npm run lint:fix:src && npm run lint:fix:test",
+    "lint:fix:src": "eslint --fix -c 'src/.eslintrc.js' './src/**/*.ts'",
+    "lint:fix:test": "eslint --fix -c 'test/.eslintrc.js' './test/**/*.ts'",
     "updateVersion": "ts-node ./scripts/updateVersion.ts",
-    "validateRelease": "ts-node ./scripts/validateRelease.ts",
-    "watch": "webpack --watch --mode development"
+    "validateRelease": "ts-node ./scripts/validateRelease.ts"
   },
   "files": [
     "dist"

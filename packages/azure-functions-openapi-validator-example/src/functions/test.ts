@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as yaml from 'js-yaml'
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions'
-import { setupValidation } from '@restfulhead/azure-functions-nodejs-openapi-validator'
+import { createJsonResponse, setupValidation } from '@restfulhead/azure-functions-nodejs-openapi-validator'
 
 /***
  * Load the OpenAPI spec from a file and setup the validator
@@ -36,12 +36,24 @@ export function getUser(request: HttpRequest, context: InvocationContext): Promi
   return Promise.resolve({ body: JSON.stringify({ name: 'jane doe', id: '456' }) })
 }
 
+export function getUsers(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  context.log(`Http function processed request for url "${request.url}"`)
+
+  return Promise.resolve(createJsonResponse([{ name: 'jane doe', id: '456' }]))
+}
+
 // TODO add many more test cases
 
 app.post('post-users', {
   route: 'users',
   authLevel: 'anonymous',
   handler: postUser,
+})
+
+app.get('get-users', {
+  route: 'users',
+  authLevel: 'anonymous',
+  handler: getUsers,
 })
 
 app.get('get-users-uid', {

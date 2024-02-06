@@ -38,6 +38,16 @@
 				"revealProblems": "onProblem",
 				"close": true
 			}
+		},
+		{
+			"type": "shell",
+			"label": "npm prune (functions)",
+			"command": "npm prune --prodcution",
+			"presentation": {
+				"reveal": "silent",
+				"revealProblems": "onProblem",
+				"close": true
+			}
 		}
 	]
 }
