@@ -88,6 +88,31 @@ paths:
         '500':
           $ref: '#/components/responses/ResponseError'
 
+  '/pagination-example':
+    get:
+      parameters:
+        - name: page
+          in: query
+          description: >
+            Use the `page[offset]` and `page[limit]` parameters to paginate through the results.
+          schema:
+            $ref: '#/components/schemas/PageParam'
+          style: deepObject
+          explode: true
+          required: true
+        - name: filter
+          in: query
+          description: Use the `filter` parameter to filter the results.
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OffsetPagination'
 components:
   responses:
     ResponseError:
@@ -154,15 +179,21 @@ components:
               description: A string indicating which query parameter caused the error.
               type: string
    
-    PageParam:
+    PageParamBase:
       type: object
       properties:
         limit:
           type: integer
-        offset:
-          type: integer
-        nextLink:
-          type: string
+
+    PageParam:
+      allOf:
+        - $ref: '#/components/schemas/PageParamBase'
+        - type: object
+          properties:
+            offset:
+              type: integer
+            nextLink:
+              type: string
 
     OffsetPagination:
       type: object

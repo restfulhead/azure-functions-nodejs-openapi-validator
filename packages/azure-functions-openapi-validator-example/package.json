@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "prebuild": "npm link ../",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rimraf dist",
@@ -14,7 +13,7 @@
   },
   "dependencies": {
     "@azure/functions": "^4.2.0",
-    "@restfulhead/azure-functions-nodejs-openapi-validator": "../src",
+    "@restfulhead/azure-functions-nodejs-openapi-validator":  "^0.0.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {

@@ -27,7 +27,7 @@
     "[json]": {
       "editor.formatOnSave": true
     },
-    "eslint.workingDirectories": ["example", "src", "test"],
+    "eslint.workingDirectories": ["packages/*/"],
     "eslint.options": {
       "resolvePluginsRelativeTo": "."
     },

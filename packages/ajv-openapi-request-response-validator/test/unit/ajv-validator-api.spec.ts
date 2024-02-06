@@ -2,9 +2,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { OpenAPIV3 } from 'openapi-types'
-import { AjvOpenApiValidator } from '../../src/ajv-openapi-validator'
 import copy from 'fast-copy'
-import { ErrorObj } from '../../src'
+import { createAjvInstance } from '../../src/ajv-factory'
+import { AjvOpenApiValidator } from '../../src/ajv-openapi-request-response-validator'
+import { ErrorObj } from '../../src/openapi-validator'
 
 const BASE_SPEC: OpenAPIV3.Document = {
   openapi: '3.0.0',
@@ -95,7 +96,8 @@ describe('The api validator', () => {
       }
     }
 
-    const validator = new AjvOpenApiValidator(spec)
+    const ajv = createAjvInstance()
+    const validator = new AjvOpenApiValidator(spec, ajv)
 
     if (fixture.validateArgs.requestBody && fixture.request.body) {
       const result = validator.validateRequestBody(
@@ -112,7 +114,7 @@ describe('The api validator', () => {
     }
 
     if (fixture.validateArgs.paths) {
-      const params = fixture.request.query ? new URLSearchParams(fixture.request.query) : new URLSearchParams()
+      const params = fixture.request.query ? fixture.request.query : {}
       for (const [path, method] of Object.entries(fixture.validateArgs.paths)) {
         if (method) {
           for (const [methodName, methodDef] of Object.entries(method)) {

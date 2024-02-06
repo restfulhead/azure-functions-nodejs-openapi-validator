@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable no-invalid-this */
-import AjvDraft4 from 'ajv-draft-04'
-import Ajv, { ErrorObject, ValidateFunction, Options } from 'ajv'
-import addFormats from 'ajv-formats'
+import Ajv, { ErrorObject, ValidateFunction } from 'ajv'
+import OpenapiRequestCoercer from './request-coercer'
+import { dummyLogger } from 'ts-log';
 import { OpenAPIV3 } from 'openapi-types'
 import {
   convertDatesToISOString,
@@ -13,9 +13,10 @@ import {
   ET_VALIDATION,
   DEFAULT_VALIDATOR_OPTS,
   hasComponentSchemas,
-  isReferenceObject,
+  isValidReferenceObject,
+  Primitive,
+  isURLSearchParams
 } from './openapi-validator'
-import { AjvExtras, DEFAULT_AJV_EXTRAS, DEFAULT_AJV_SETTINGS } from './ajv-opts'
 import { merge, openApiMergeRules } from 'allof-merge'
 
 const REQ_BODY_COMPONENT_PREFIX_LENGTH = 27 // #/components/requestBodies/PetBody
@@ -77,103 +78,46 @@ export class AjvOpenApiValidator {
   private readonly requestBodyValidators: RequestValidator[] = []
   private readonly responseBodyValidators: ResponseValidator[] = []
   private readonly paramsValidators: ParameterValidator[] = []
-  private readonly ajv: Ajv
   private readonly validatorOpts: Required<ValidatorOpts>
+  private requestCoercer: OpenapiRequestCoercer | undefined
 
   /**
    * @param spec - Parsed OpenAPI V3 specification
-   * @param ajvOpts - Optional Ajv options
-   * @param validatorOpts - Optional additional validator options
-   * @param ajvExtras - Optional additional Ajv features
+   * @param ajv - Ajv instance
    */
   constructor(
     spec: OpenAPIV3.Document,
+    private ajv: Ajv,
     validatorOpts?: ValidatorOpts,
-    ajvOpts: Options = DEFAULT_AJV_SETTINGS,
-    ajvExtras: AjvExtras = DEFAULT_AJV_EXTRAS
   ) {
-    // always disable removeAdditional, because it has unexpected results with allOf
-    this.ajv = new AjvDraft4({ ...DEFAULT_AJV_SETTINGS, ...ajvOpts, removeAdditional: false })
-    if (ajvExtras?.addStandardFormats === true) {
-      addFormats(this.ajv)
-    }
-    if (ajvExtras?.customKeywords) {
-      ajvExtras.customKeywords.forEach((kwd) => {
-        this.ajv.addKeyword(kwd)
-      })
-    }
-
     this.validatorOpts = validatorOpts ? { ...DEFAULT_VALIDATOR_OPTS, ...validatorOpts } : DEFAULT_VALIDATOR_OPTS
-    if (this.validatorOpts.log == undefined) {
-      this.validatorOpts.log = () => {}
+    if (this.validatorOpts.logger == undefined) {
+      this.validatorOpts.logger = dummyLogger
     }
 
-    this.initialize(spec)
+    this.initialize(spec, this.validatorOpts.coerceTypes)
   }
 
-  validateResponseBody(path: string, method: string, status: string | number, data: unknown, strict = true): ErrorObj[] | undefined {
-    const validator = this.responseBodyValidators.find(
-      (v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + ''
-    )?.validator
-    if (validator) {
-      return this.validateBody(validator, data)
-    } else if (data !== undefined && data !== null && strict) {
-      return [
-        {
-          status: STATUS_BAD_REQUEST,
-          code: `${EC_VALIDATION}-unexpected-response-body`,
-          title: 'A response body is not supported',
-        },
-      ]
-    } else {
-      return undefined
-    }
-  }
 
-  validateRequestBody(path: string, method: string, data: unknown, strict = true): ErrorObj[] | undefined {
-    const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
-
-    if (data !== undefined && data !== null) {
-      if (validator?.validator) {
-        return this.validateBody(validator.validator, data)
-      } else if (strict) {
-        return [
-          {
-            status: STATUS_BAD_REQUEST,
-            code: `${EC_VALIDATION}-unexpected-request-body`,
-            title: 'A request body is not supported',
-          },
-        ]
-      }
-    } else if (validator?.required) {
-      return [
-        {
-          status: STATUS_BAD_REQUEST,
-          code: `${EC_VALIDATION}-missing-request-body`,
-          title: 'A request body is required',
-        },
-      ]
-    }
-
-    return undefined
-  }
-
-  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
-    const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
-    const res = validator(filteredData)
-
-    if (!res) {
-      return mapValidatorErrors(validator.errors)
-    }
-
-    return undefined
-  }
-
-  validateQueryParams(path: string, method: string, params: URLSearchParams, strict = true): ErrorObj[] | undefined {
+  validateQueryParams(path: string, method: string, origParams: Record<string, Primitive> | URLSearchParams, strict = true): ErrorObj[] | undefined {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
 
     let errResponse: ErrorObj[] = []
-    params.forEach((value, key) => {
+
+    let params = isURLSearchParams(origParams) ? Array.from(origParams.entries()).reduce((acc, [key, value]) => {
+      acc[key] = value
+      return acc
+    }, {} as Record<string, Primitive> ) : origParams
+
+    if (this.requestCoercer) {
+      params = this.unserializeParameters(params)
+      this.requestCoercer.coerce({
+        query: params,
+      })
+    }
+
+    for (const key in params) {
+      const value = params[key]
       const paramDefinitionIndex = parameterDefinitions.findIndex((p) => p.param.name === key?.toLowerCase())
       if (paramDefinitionIndex < 0) {
         if (strict) {
@@ -213,7 +157,7 @@ export class AjvOpenApiValidator {
           }
         }
       }
-    })
+    }
 
     if (parameterDefinitions.length) {
       parameterDefinitions
@@ -233,7 +177,67 @@ export class AjvOpenApiValidator {
     return errResponse.length ? errResponse : undefined
   }
 
-  private initialize(origSpec: OpenAPIV3.Document): void {
+  validateRequestBody(path: string, method: string, data: unknown, strict = true): ErrorObj[] | undefined {
+    const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
+
+    if (data !== undefined && data !== null) {
+      if (validator?.validator) {
+        return this.validateBody(validator.validator, data)
+      } else if (strict) {
+        return [
+          {
+            status: STATUS_BAD_REQUEST,
+            code: `${EC_VALIDATION}-unexpected-request-body`,
+            title: 'A request body is not supported',
+          },
+        ]
+      }
+    } else if (validator?.required) {
+      return [
+        {
+          status: STATUS_BAD_REQUEST,
+          code: `${EC_VALIDATION}-missing-request-body`,
+          title: 'A request body is required',
+        },
+      ]
+    }
+
+    return undefined
+  }
+
+  validateResponseBody(path: string, method: string, status: string | number, data: unknown, strict = true): ErrorObj[] | undefined {
+    const validator = this.responseBodyValidators.find(
+      (v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + ''
+    )?.validator
+    if (validator) {
+      return this.validateBody(validator, data)
+    } else if (data !== undefined && data !== null && strict) {
+      return [
+        {
+          status: STATUS_BAD_REQUEST,
+          code: `${EC_VALIDATION}-unexpected-response-body`,
+          title: 'A response body is not supported',
+        },
+      ]
+    } else {
+      return undefined
+    }
+  }
+
+  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
+    const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
+    const res = validator(filteredData)
+
+    if (!res) {
+      return mapValidatorErrors(validator.errors)
+    }
+
+    return undefined
+  }
+
+  
+
+  private initialize(origSpec: OpenAPIV3.Document, coerceTypes: boolean): void {
     const schemaCompileFailures: string[] = []
     const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() })
 
@@ -241,12 +245,12 @@ export class AjvOpenApiValidator {
       Object.keys(spec.components.schemas).forEach((key) => {
         const schema = spec.components.schemas[key]
         if (this.validatorOpts.setAdditionalPropertiesToFalse === true) {
-          if (!isReferenceObject(schema) && schema.additionalProperties === undefined && schema.discriminator === undefined) {
+          if (!isValidReferenceObject(schema) && schema.additionalProperties === undefined && schema.discriminator === undefined) {
             schema.additionalProperties = false
           }
         }
 
-        this.validatorOpts.log(`Adding schema '#/components/schemas/${key}'`)
+        this.validatorOpts.logger.info(`Adding schema '#/components/schemas/${key}'`)
         this.ajv.addSchema(schema, `#/components/schemas/${key}`)
       })
     }
@@ -260,6 +264,7 @@ export class AjvOpenApiValidator {
           if (this.validatorOpts.strict) {
             throw new Error('Expected to find detail for ' + path)
           } else {
+            this.validatorOpts.logger.warn('Expected to find detail for ' + path)
             continue
           }
         }
@@ -272,14 +277,14 @@ export class AjvOpenApiValidator {
             let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
             let required = false
 
-            if (isReferenceObject(operation.requestBody)) {
+            if (isValidReferenceObject(operation.requestBody)) {
               let errorStr: string | undefined
 
               if (operation.requestBody.$ref.length > REQ_BODY_COMPONENT_PREFIX_LENGTH) {
                 const requestBodyName = operation.requestBody.$ref.substring(REQ_BODY_COMPONENT_PREFIX_LENGTH)
                 if (spec.components?.requestBodies && spec.components?.requestBodies[requestBodyName]) {
                   const response = spec.components?.requestBodies[requestBodyName]
-                  if (!isReferenceObject(response)) {
+                  if (!isValidReferenceObject(response)) {
                     schema = this.getJsonContent(response.content)?.schema
                     required = !!response.required
                   } else {
@@ -291,8 +296,11 @@ export class AjvOpenApiValidator {
               } else {
                 errorStr = `Unable to follow request body reference '${operation.requestBody.$ref}'`
               }
-              if (errorStr && this.validatorOpts.strict) {
-                throw new Error(errorStr)
+              if (errorStr) {
+                this.validatorOpts.logger.warn(errorStr)
+                if (this.validatorOpts.strict) {
+                  throw new Error(errorStr)
+                }
               }
             } else {
               const content = this.getJsonContent(operation.requestBody.content)
@@ -304,7 +312,7 @@ export class AjvOpenApiValidator {
 
             if (schema) {
               const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/requestBody`
-              this.validatorOpts.log(
+              this.validatorOpts.logger.info(
                 `Adding request body validator '${path}', '${method}' with schema '${schemaName}' (required: ${required})`
               )
               this.ajv.addSchema(schema, schemaName)
@@ -324,14 +332,14 @@ export class AjvOpenApiValidator {
 
               let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
 
-              if (isReferenceObject(response)) {
+              if (isValidReferenceObject(response)) {
                 let errorStr: string | undefined
 
                 if (response.$ref.length > RESPONSE_COMPONENT_PREFIX_LENGTH) {
                   const respName = response.$ref.substring(RESPONSE_COMPONENT_PREFIX_LENGTH)
                   if (spec.components?.responses && spec.components?.responses[respName]) {
                     const response = spec.components?.responses[respName]
-                    if (!isReferenceObject(response)) {
+                    if (!isValidReferenceObject(response)) {
                       const content = this.getJsonContent(response.content)
                       schema = content ? content.schema : undefined
                     } else {
@@ -343,8 +351,12 @@ export class AjvOpenApiValidator {
                 } else {
                   errorStr = `Unable to follow response reference '${response.$ref}'`
                 }
-                if (errorStr && this.validatorOpts.strict) {
-                  throw new Error(errorStr)
+                if (errorStr) {
+                  if (this.validatorOpts.strict) {
+                    throw new Error(errorStr)
+                  } else {
+                    this.validatorOpts.logger.warn(errorStr)
+                  }
                 }
               } else if (response.content) {
                 schema = this.getJsonContent(response.content)?.schema
@@ -352,7 +364,7 @@ export class AjvOpenApiValidator {
 
               if (schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/response/${key}`
-                this.validatorOpts.log(`Adding response body validator '${path}', '${method}', '${key}' with schema '${schemaName}'`)
+                this.validatorOpts.logger.info(`Adding response body validator '${path}', '${method}', '${key}' with schema '${schemaName}'`)
                 this.ajv.addSchema(schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
                 this.responseBodyValidators.push({
@@ -366,17 +378,17 @@ export class AjvOpenApiValidator {
           }
 
           if (operation.parameters) {
+            const resolvedParams: OpenAPIV3.ParameterObject[] = []
             operation.parameters.forEach((param) => {
               let resolvedParam: OpenAPIV3.ParameterObject | undefined
 
-              if (isReferenceObject(param)) {
+              if (isValidReferenceObject(param)) {
                 let errorStr: string | undefined
-
                 if (param.$ref.length > PARAMS_COMPONENT_PREFIX_LENGH) {
                   const paramName = param.$ref.substring(PARAMS_COMPONENT_PREFIX_LENGH)
                   if (spec.components?.parameters && spec.components?.parameters[paramName]) {
                     const paramValue = spec.components?.parameters[paramName]
-                    if (!isReferenceObject(paramValue)) {
+                    if (!isValidReferenceObject(paramValue)) {
                       resolvedParam = paramValue
                     } else {
                       errorStr = `A reference was not expected here: '${param.$ref}'`
@@ -387,8 +399,12 @@ export class AjvOpenApiValidator {
                 } else {
                   errorStr = `Unable to follow parameter reference '${param.$ref}'`
                 }
-                if (errorStr && this.validatorOpts.strict) {
-                  throw new Error(errorStr)
+                if (errorStr) {
+                  if (this.validatorOpts.strict) {
+                    throw new Error(errorStr)
+                  } else {
+                    this.validatorOpts.logger.warn(errorStr)
+                  }
                 }
               } else {
                 resolvedParam = param
@@ -397,7 +413,7 @@ export class AjvOpenApiValidator {
               // TODO could also add support for other parameters such as headers here
               if (resolvedParam?.in === 'query' && resolvedParam.schema) {
                 const schemaName = `#/paths${path.replace(/[{}]/g, '')}/${method}/parameters/${resolvedParam.name}`
-                this.validatorOpts.log(`Adding parameter validator '${path}', '${method}', '${resolvedParam.name}'`)
+                this.validatorOpts.logger.info(`Adding parameter validator '${path}', '${method}', '${resolvedParam.name}'`)
                 this.ajv.addSchema(resolvedParam.schema, schemaName)
                 const validator = this.ajv.compile({ $ref: schemaName })
 
@@ -411,8 +427,26 @@ export class AjvOpenApiValidator {
                   },
                   validator,
                 })
+                
+                if (isValidReferenceObject(resolvedParam.schema)) {
+                  const fullyResolved = this.fullyResolveParameter(spec, resolvedParam)
+                  if (fullyResolved) {
+                    resolvedParams.push(fullyResolved)
+                  }
+                } else {
+                  resolvedParams.push(resolvedParam)
+                }
               }
             })
+          
+            if (this.validatorOpts.coerceTypes == true && resolvedParams.length > 0) {
+              this.requestCoercer = new OpenapiRequestCoercer({
+                logger: this.validatorOpts.logger,
+                enableObjectCoercion: true,
+                parameters: resolvedParams,
+                
+              })
+            }
           }
         }
       }
@@ -435,4 +469,76 @@ export class AjvOpenApiValidator {
       return key ? content[key] : undefined
     }
   }
+
+  
+    
+  private resolveRef(document: OpenAPIV3.Document, ref: string): any {  
+    const pathParts = ref.split('/');  
+    
+    return pathParts.reduce((current: any, part) => {  
+      if (part === '#' || part === '') return current;  
+      return current ? current[part] : undefined;  
+    }, document);  
+  }  
+    
+  private fullyResolveSchemaRefs(document: OpenAPIV3.Document, schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject, visited: Map<string, OpenAPIV3.SchemaObject> = new Map<string, OpenAPIV3.SchemaObject>()): OpenAPIV3.SchemaObject | undefined {
+    if (typeof schema !== 'object') {
+      return undefined
+    }
+
+    if (isValidReferenceObject(schema)) {
+      const resolved = visited.get(schema.$ref)
+      if (resolved) {
+        return resolved
+      }
+    }
+    
+    let resolvedSchema
+    if (isValidReferenceObject(schema)) {  
+      resolvedSchema = this.resolveRef(document, schema.$ref) as OpenAPIV3.SchemaObject;
+      visited.set(schema.$ref, resolvedSchema);
+    } else {
+      resolvedSchema = schema
+    }
+    
+    for (const key in resolvedSchema) {  
+      if (typeof resolvedSchema[key as keyof OpenAPIV3.SchemaObject] === 'object') {
+        resolvedSchema[key as keyof OpenAPIV3.SchemaObject] = this.fullyResolveSchemaRefs(document, resolvedSchema[key as keyof OpenAPIV3.SchemaObject], visited);  
+      }  
+    }
+    
+    return resolvedSchema;  
+  }
+    
+  private fullyResolveParameter(document: OpenAPIV3.Document, parameter: OpenAPIV3.ParameterObject): OpenAPIV3.ParameterObject | undefined {  
+    if (!parameter.schema || typeof parameter.schema !== 'object' || !isValidReferenceObject(parameter.schema)) {  
+      return parameter;  
+    }  
+    
+    return { ...parameter, schema: this.fullyResolveSchemaRefs(document, parameter.schema) };
+  }  
+
+  private unserializeParameters(parameters: Record<string, Primitive>): Record<string, any> {  
+    const result: Record<string, any> = {};
+    for (const key in parameters) {
+      const value = parameters[key];
+        let target = result;  
+        const splitKey = key.split('[');  
+        const lastKeyIndex = splitKey.length - 1;  
+  
+        splitKey.forEach((part, index) => {  
+            const cleanPart = part.replace(']', '');  
+  
+            if (index === lastKeyIndex) {  
+                target[cleanPart] = typeof value === 'string' ? decodeURIComponent(value) : value // TODO is the decode necesary?
+            } else {  
+                if (!target[cleanPart]) target[cleanPart] = {};  
+                target = target[cleanPart];  
+            }  
+        });  
+    }
+  
+    return result;  
+  }
+  
 }

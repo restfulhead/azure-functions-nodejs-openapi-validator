@@ -1,13 +1,11 @@
-// based on express-openapi-validator released under MIT
-// Copyright (c) 2019 Carmine M. DiMascio
-
 import { KeywordDefinition, Options } from 'ajv'
 
 export const DEFAULT_AJV_SETTINGS: Options = {
   allErrors: true,
   useDefaults: true,
   discriminator: true,
-  coerceTypes: false,
+  removeAdditional: false, // recommended to be false for allOf to work properly
+  coerceTypes: false, // recommended to be false for anyof to work properly
 }
 
 export interface AjvExtras {

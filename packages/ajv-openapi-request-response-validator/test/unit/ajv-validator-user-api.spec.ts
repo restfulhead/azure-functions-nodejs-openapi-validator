@@ -1,12 +1,14 @@
 import { loadSpec } from '../helpers/test-utils'
-import { AjvOpenApiValidator } from '../../src/ajv-openapi-validator'
+import { AjvOpenApiValidator } from '../../src/ajv-openapi-request-response-validator'
+import { createAjvInstance } from '../../src/ajv-factory'
 
 describe('The api validator for the user api spec', () => {
   let validator: AjvOpenApiValidator
 
   beforeAll(async () => {
     const spec = await loadSpec()
-    validator = new AjvOpenApiValidator(spec)
+    const ajv = createAjvInstance()
+    validator = new AjvOpenApiValidator(spec, ajv)
   })
 
   it('should succeed ApiError model validation', () => {
@@ -115,13 +117,11 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should succeed parameter validation', () => {
-    expect(
-      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '3', booleanparam: 'true' }), true)
-    ).toEqual(undefined)
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 3, booleanparam: true }, true)).toEqual(undefined)
   })
 
   it('should fail parameter validation - missing required parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({}), true)).toEqual([
+    expect(validator.validateQueryParams('/users/{uid}', 'put', {}, true)).toEqual([
       {
         code: 'Validation-required-query-parameter',
         source: { parameter: 'requirednumberparam' },
@@ -132,7 +132,7 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should fail parameter validation - empty parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '' }), true)).toEqual([
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: '' }, true)).toEqual([
       {
         code: 'Validation-query-parameter',
         source: { parameter: 'requirednumberparam' },
@@ -143,9 +143,7 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should fail parameter validation - extra parameter', () => {
-    expect(
-      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), true)
-    ).toEqual([
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, true)).toEqual([
       {
         code: 'Validation-invalid-query-parameter',
         source: { parameter: 'unspecified' },
@@ -156,9 +154,7 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should succeed parameter validation - extra parameter non strict', () => {
-    expect(
-      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '1', unspecified: 'hello' }), false)
-    ).toEqual(undefined)
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, false)).toEqual(undefined)
   })
 
   it('should succeed parameter validation - non string types', () => {
@@ -166,7 +162,7 @@ describe('The api validator for the user api spec', () => {
       validator.validateQueryParams(
         '/users/{uid}',
         'put',
-        new URLSearchParams({ mode: 'something', requirednumberparam: '1.2', booleanparam: 'true', integerparam: '3' }),
+        { mode: 'something', requirednumberparam: 1.2, booleanparam: true, integerparam: 3 },
         false
       )
     ).toEqual(undefined)
@@ -177,7 +173,7 @@ describe('The api validator for the user api spec', () => {
       validator.validateQueryParams(
         '/users/{uid}',
         'put',
-        new URLSearchParams({ mode: 'something', requirednumberparam: 'notanumber', booleanparam: 'maybe', integerparam: '1.2' }),
+        { mode: 'something', requirednumberparam: 'notanumber', booleanparam: 'maybe', integerparam: 1.2 },
         false
       )
     ).toEqual([
@@ -203,14 +199,37 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should fail parameter validation - min max', () => {
-    expect(
-      validator.validateQueryParams('/users/{uid}', 'put', new URLSearchParams({ requirednumberparam: '2', integerparam: '500' }), false)
-    ).toEqual([
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 2, integerparam: 500 }, false)).toEqual([
       {
         code: 'Validation-maximum',
         source: { pointer: '#/paths/users/uid/put/parameters/integerparam/maximum' },
         status: 400,
         title: 'must be <= 5',
+      },
+    ])
+  })
+
+  it('should succeed parameter validation - pagination', () => {
+    expect(
+      validator.validateQueryParams('/pagination-example', 'get', { filter: 'test', 'page[offset]': '0', 'page[limit]': '12' })
+    ).toEqual(undefined)
+  })
+
+  it('should fail parameter validation - min max', () => {
+    expect(
+      validator.validateQueryParams('/pagination-example', 'get', { filter: 'test', 'page[offset]': 'yellow', 'page[limit]': 'nono' })
+    ).toEqual([
+      {
+        code: 'Validation-type',
+        source: { pointer: '#/components/schemas/PageParam/properties/limit/type' },
+        status: 400,
+        title: 'must be integer',
+      },
+      {
+        code: 'Validation-type',
+        source: { pointer: '#/components/schemas/PageParam/properties/offset/type' },
+        status: 400,
+        title: 'must be integer',
       },
     ])
   })

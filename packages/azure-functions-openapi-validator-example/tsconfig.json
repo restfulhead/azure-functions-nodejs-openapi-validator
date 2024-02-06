@@ -6,5 +6,8 @@
     "rootDir": ".",
     "sourceMap": true,
     "strict": false,
-  }
+  },
+  "references": [
+    { "path": "../azure-functions-openapi-validator" },
+  ]
 }

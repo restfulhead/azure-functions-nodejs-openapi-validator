@@ -1,5 +1,5 @@
 import { OpenAPIV3 } from 'openapi-types'
-
+import { Logger } from 'ts-log';
 export const STATUS_BAD_REQUEST = 400
 export const EC_VALIDATION = 'Validation'
 export const ET_VALIDATION = 'Validation failed'
@@ -45,6 +45,7 @@ export interface ErrorObj {
 }
 
 type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] }
+export type Primitive = string | number | bigint | boolean | undefined | null | Primitive[]
 
 export interface DocWithCompSchemas extends OpenAPIV3.Document {
   components: WithRequired<OpenAPIV3.ComponentsObject, 'schemas'>
@@ -60,10 +61,14 @@ export function hasComponentRequestBodies(doc: OpenAPIV3.Document): doc is DocWi
   return doc.components?.requestBodies !== undefined && doc.components?.requestBodies !== null
 }
 
-export function isReferenceObject(
+export function isValidReferenceObject(
   parameter: OpenAPIV3.ParameterObject | OpenAPIV3.SchemaObject | OpenAPIV3.RequestBodyObject | OpenAPIV3.ReferenceObject
 ): parameter is OpenAPIV3.ReferenceObject {
-  return (parameter as OpenAPIV3.ReferenceObject).$ref !== undefined
+  return (parameter as OpenAPIV3.ReferenceObject).$ref !== undefined && (parameter as OpenAPIV3.ReferenceObject).$ref !== null && (parameter as OpenAPIV3.ReferenceObject).$ref.includes('/')
+}
+
+export function isURLSearchParams(params: Record<string, Primitive> | URLSearchParams): params is URLSearchParams {
+  return params !== undefined && params.getAll !== undefined
 }
 
 export interface ValidatorOpts {
@@ -71,19 +76,20 @@ export interface ValidatorOpts {
   setAdditionalPropertiesToFalse?: boolean
   /** whether to convert all dates of validation objects to ISO strings before validating (true by default) */
   convertDatesToIsoString?: boolean
-  /** whether to fail initialization if one of the schema compilations fails */
+  /** whether to coerce header, path, query and formData request properties prior to AJV validation (true by default) */
+  coerceTypes?: boolean
+  /** whether to fail initialization if one of the schema compilations fails (true by default) */
   strict?: boolean
-  /** function used to log messages */
-  log?: (message: string) => void
+  /** function used to log messages (console by default) */
+  logger?: Logger
 }
 
 export const DEFAULT_VALIDATOR_OPTS: Required<ValidatorOpts> = {
   setAdditionalPropertiesToFalse: true,
   convertDatesToIsoString: true,
+  coerceTypes: true,
   strict: true,
-  log: (message: string) => {
-    console.log(message)
-  },
+  logger: console,
 }
 
 export type DateToISOString<T> = T extends Date ? string : T extends object ? { [K in keyof T]: DateToISOString<T[K]> } : T

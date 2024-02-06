@@ -68,6 +68,7 @@ jspm_packages/
 dist
 dist-test
 out
+tsconfig.tsbuildinfo
 
 # Azure Functions artifacts
 bin

@@ -9,7 +9,7 @@
 			"isBackground": true,
 			"dependsOn": "npm build (functions)",
 			"options": {
-				"cwd": "${workspaceFolder}/example"
+				"cwd": "${workspaceFolder}/packages/azure-functions-openapi-validator-example"
 			},
 			"presentation": {
 				"reveal": "always",
@@ -20,40 +20,9 @@
 		{
 			"type": "shell",
 			"label": "npm build (functions)",
-			"command": "npm run build",
+			"command": "npm run build -ws",
 			"dependsOn": "npm clean (functions)",
 			"problemMatcher": "$tsc",
-			"options": {
-				"cwd": "${workspaceFolder}/example"
-			},
-			"presentation": {
-				"reveal": "silent",
-				"revealProblems": "onProblem",
-				"close": true
-			}
-		},
-		{
-			"type": "shell",
-			"label": "npm install (functions)",
-			"command": "npm install",
-			"options": {
-				"cwd": "${workspaceFolder}/example"
-			},
-			"presentation": {
-				"reveal": "silent",
-				"revealProblems": "onProblem",
-				"close": true
-			}
-		},
-		{
-			"type": "shell",
-			"label": "npm prune (functions)",
-			"command": "npm prune --production",
-			"dependsOn": "npm build (functions)",
-			"problemMatcher": [],
-			"options": {
-				"cwd": "${workspaceFolder}/example"
-			},
 			"presentation": {
 				"reveal": "silent",
 				"revealProblems": "onProblem",
@@ -63,11 +32,7 @@
 		{
 			"type": "shell",
 			"label": "npm clean (functions)",
-			"command": "npm run clean",
-			"dependsOn": "npm install (functions)",
-			"options": {
-				"cwd": "${workspaceFolder}/example"
-			},
+			"command": "npm run clean -ws",
 			"presentation": {
 				"reveal": "silent",
 				"revealProblems": "onProblem",
