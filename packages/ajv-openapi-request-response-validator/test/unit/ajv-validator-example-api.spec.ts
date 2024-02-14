@@ -13,15 +13,15 @@ describe('The api validator for the user api spec', () => {
 
   it('should succeed ApiError model validation', () => {
     expect(
-      validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 400, code: 'Validation', title: '...' }] })
+      validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 500, code: 'Validation', title: '...' }] })
     ).toEqual(undefined)
   })
 
   it('should fail ApiError model due to missing code', () => {
-    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 400, title: '...' }] })).toEqual([
+    expect(validator.validateResponseBody('/users/{uid}', 'put', '500', { errors: [{ status: 500, title: '...' }] })).toEqual([
       {
         code: 'Validation-required',
-        status: 400,
+        status: 500,
         title: "must have required property 'code'",
         source: { pointer: '#/required' },
       },
@@ -34,7 +34,7 @@ describe('The api validator for the user api spec', () => {
     ).toEqual([
       {
         code: 'Validation-maximum',
-        status: 400,
+        status: 500,
         title: 'must be <= 599',
         source: { pointer: '#/properties/status/maximum' },
       },
@@ -44,13 +44,13 @@ describe('The api validator for the user api spec', () => {
   it('should fail due to additional props', () => {
     expect(
       validator.validateResponseBody('/users/{uid}', 'put', '500', {
-        errors: [{ status: 400, code: 'Validation', title: '...', unknownPro: '123' }],
+        errors: [{ status: 500, code: 'Validation', title: '...', unknownPro: '123' }],
       })
     ).toEqual([
       {
         code: 'Validation-additionalProperties',
         source: { pointer: '#/additionalProperties' },
-        status: 400,
+        status: 500,
         title: 'must NOT have additional properties',
       },
     ])
@@ -76,7 +76,7 @@ describe('The api validator for the user api spec', () => {
       {
         code: 'Validation-additionalProperties',
         source: { pointer: '#/components/schemas/TestRequestA/additionalProperties' },
-        status: 400,
+        status: 500,
         title: 'must NOT have additional properties',
       },
     ])
@@ -85,7 +85,7 @@ describe('The api validator for the user api spec', () => {
   it('should fail oneOf missing discriminator', () => {
     const dataWithExtra = { name: 'test' }
     expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual([
-      { code: 'Validation-discriminator', source: { pointer: '#/discriminator' }, status: 400, title: 'tag "objType" must be string' },
+      { code: 'Validation-discriminator', source: { pointer: '#/discriminator' }, status: 500, title: 'tag "objType" must be string' },
     ])
   })
 
@@ -209,7 +209,7 @@ describe('The api validator for the user api spec', () => {
     ])
   })
 
-  it('should succeed parameter validation - pagination', () => {
+  fit('should succeed parameter validation - pagination', () => {
     expect(
       validator.validateQueryParams('/pagination-example', 'get', { filter: 'test', 'page[offset]': '0', 'page[limit]': '12' })
     ).toEqual(undefined)

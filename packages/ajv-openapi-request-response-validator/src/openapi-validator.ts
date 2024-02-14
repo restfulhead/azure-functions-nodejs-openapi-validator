@@ -1,6 +1,11 @@
 import { OpenAPIV3 } from 'openapi-types'
 import { Logger } from 'ts-log'
-export const STATUS_BAD_REQUEST = 400
+
+export enum HttpStatus {
+  BAD_REQUEST = 400,
+  INTERNAL_SERVER_ERROR = 500,
+}
+
 export const EC_VALIDATION = 'Validation'
 export const ET_VALIDATION = 'Validation failed'
 
@@ -121,4 +126,29 @@ export function convertDatesToISOString<T>(data: T): DateToISOString<T> {
     return result
   }
   return data as DateToISOString<T>
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function unserializeParameters(parameters: Record<string, Primitive>): Record<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: Record<string, any> = {}
+  for (const key in parameters) {
+    const value = parameters[key]
+    let target = result
+    const splitKey = key.split('[')
+    const lastKeyIndex = splitKey.length - 1
+
+    splitKey.forEach((part, index) => {
+      const cleanPart = part.replace(']', '')
+
+      if (index === lastKeyIndex) {
+        target[cleanPart] = value
+      } else {
+        if (!target[cleanPart]) target[cleanPart] = {}
+        target = target[cleanPart]
+      }
+    })
+  }
+
+  return result
 }

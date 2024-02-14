@@ -1,6 +1,11 @@
 import { app } from '@azure/functions'
 import { OpenAPIV3 } from 'openapi-types'
-import { DEFAULT_HOOK_OPTIONS, ValidatorHookOptions, configureValidationPreInvocationHandler } from './validation-hook-setup'
+import {
+  DEFAULT_HOOK_OPTIONS,
+  ValidatorHookOptions,
+  configureValidationPostInvocationHandler,
+  configureValidationPreInvocationHandler,
+} from './validation-hook-setup'
 import Ajv, { Options } from 'ajv'
 import {
   AjvOpenApiValidator,
@@ -16,17 +21,13 @@ function isAjvInstance(ajv: undefined | Options | Ajv): ajv is Ajv {
 
 export function setupValidation(
   spec: OpenAPIV3.Document,
-  opts: { hook?: ValidatorHookOptions; validator?: ValidatorOpts; ajv?: Options | Ajv } = {
-    hook: DEFAULT_HOOK_OPTIONS,
-    validator: DEFAULT_VALIDATOR_OPTS,
-    ajv: DEFAULT_AJV_SETTINGS,
-  }
+  optsHook: ValidatorHookOptions = DEFAULT_HOOK_OPTIONS,
+  optsValidator: ValidatorOpts = DEFAULT_VALIDATOR_OPTS,
+  optsAjc: Options | Ajv = DEFAULT_AJV_SETTINGS
 ) {
-  const ajv = isAjvInstance(opts?.ajv) ? opts.ajv : createAjvInstance(opts?.ajv as Options | undefined)
-  const validator = new AjvOpenApiValidator(spec, ajv, opts?.validator)
-  const handler = opts?.hook
-    ? configureValidationPreInvocationHandler(validator, opts.hook)
-    : configureValidationPreInvocationHandler(validator)
+  const ajv = isAjvInstance(optsAjc) ? optsAjc : createAjvInstance(optsAjc as Options | undefined)
+  const validator = new AjvOpenApiValidator(spec, ajv, optsValidator)
 
-  app.hook.preInvocation(handler)
+  app.hook.preInvocation(configureValidationPreInvocationHandler(validator, optsHook))
+  app.hook.postInvocation(configureValidationPostInvocationHandler(validator, optsHook))
 }

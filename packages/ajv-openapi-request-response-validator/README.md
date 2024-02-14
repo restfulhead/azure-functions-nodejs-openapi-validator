@@ -1,4 +1,4 @@
-# Azure Functions Open API v3 specification validation
+# AJV Open API v3 specification validation
 
 This library contains an Open API v3.0 validator that validates http requests and responses.
 
@@ -25,6 +25,9 @@ Because the Open API specification can come in different flavors and from differ
 of this library. To load a YAML based spec, you can for example use `js-yaml` as follows:
 
 ```typescript
+import * as fs from 'fs'
+import * as yaml from 'js-yaml'
+
 const openApiContent = fs.readFileSync('openapi.yaml', 'utf8')
 const openApiSpec = yaml.load(openApiContent)
 ```
@@ -32,13 +35,15 @@ const openApiSpec = yaml.load(openApiContent)
 Once you've loaded the specification, create an instance of AJV (for example by using the factory) and the validator.
 
 ```typescript
+import { AjvOpenApiValidator, createAjvInstance } from '@restfulhead/ajv-openapi-request-response-validator'
+
 const ajv = createAjvInstance()
 const validator = new AjvOpenApiValidator(spec, ajv)
 ```
 
-You can then use the different validation functions such as `validateQueryParams`, `validateRequestBody` and `validateResponseBody`
+You can then use the different validation functions such as `validateQueryParams`, `validateRequestBody` and `validateResponseBody`.
 
-For examples, see refer to the unit tests.
+For examples, refer to the unit tests.
 
 ## License and Attribution
 

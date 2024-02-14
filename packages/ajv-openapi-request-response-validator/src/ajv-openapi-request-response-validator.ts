@@ -2,13 +2,13 @@
 /* eslint-disable no-invalid-this */
 import Ajv, { ErrorObject, ValidateFunction } from 'ajv'
 import OpenapiRequestCoercer from 'openapi-request-coercer'
-import { dummyLogger } from 'ts-log'
+import { Logger, dummyLogger } from 'ts-log'
 import { OpenAPIV3 } from 'openapi-types'
 import {
   convertDatesToISOString,
   ErrorObj,
   ValidatorOpts,
-  STATUS_BAD_REQUEST,
+  HttpStatus,
   EC_VALIDATION,
   ET_VALIDATION,
   DEFAULT_VALIDATOR_OPTS,
@@ -16,6 +16,7 @@ import {
   isValidReferenceObject,
   Primitive,
   isURLSearchParams,
+  unserializeParameters,
 } from './openapi-validator'
 import { merge, openApiMergeRules } from 'allof-merge'
 
@@ -45,12 +46,18 @@ interface ParameterValidator extends RouteValidator {
   }
 }
 
-function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined): ErrorObj[] {
+interface PathMethodParameterCoercer {
+  path: string
+  method: string
+  coercer: OpenapiRequestCoercer
+}
+
+function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined, status: HttpStatus): ErrorObj[] {
   if (validatorErrors) {
     const mapped: ErrorObj[] = []
     validatorErrors.forEach((ajvErr) => {
       const mappedErr: ErrorObj = {
-        status: STATUS_BAD_REQUEST,
+        status,
         code: `${EC_VALIDATION}-${ajvErr.keyword}`,
         title: ajvErr.message ?? ET_VALIDATION,
       }
@@ -66,7 +73,7 @@ function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined): 
   } else {
     return [
       {
-        status: STATUS_BAD_REQUEST,
+        status,
         code: EC_VALIDATION,
         title: ET_VALIDATION,
       },
@@ -79,7 +86,7 @@ export class AjvOpenApiValidator {
   private readonly responseBodyValidators: ResponseValidator[] = []
   private readonly paramsValidators: ParameterValidator[] = []
   private readonly validatorOpts: Required<ValidatorOpts>
-  private requestCoercer: OpenapiRequestCoercer | undefined
+  private requestCoercers: PathMethodParameterCoercer[] = []
 
   /**
    * @param spec - Parsed OpenAPI V3 specification
@@ -102,10 +109,12 @@ export class AjvOpenApiValidator {
     path: string,
     method: string,
     origParams: Record<string, Primitive> | URLSearchParams,
-    strict = true
+    strict = true,
+    logger?: Logger
   ): ErrorObj[] | undefined {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
 
+    const log = logger ? logger : this.validatorOpts.logger
     let errResponse: ErrorObj[] = []
 
     let params = isURLSearchParams(origParams)
@@ -118,9 +127,11 @@ export class AjvOpenApiValidator {
         )
       : origParams
 
-    if (this.requestCoercer) {
-      params = this.unserializeParameters(params)
-      this.requestCoercer.coerce({
+    const requestCoercer = this.requestCoercers.find((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
+    if (requestCoercer && Object.keys(params).length > 0) {
+      log.debug(`Unserializing and coercing query parameters (${method} ${path})`)
+      params = unserializeParameters(params)
+      requestCoercer.coercer.coerce({
         query: params,
       })
     }
@@ -131,13 +142,15 @@ export class AjvOpenApiValidator {
       if (paramDefinitionIndex < 0) {
         if (strict) {
           errResponse.push({
-            status: STATUS_BAD_REQUEST,
+            status: HttpStatus.BAD_REQUEST,
             code: `${EC_VALIDATION}-invalid-query-parameter`,
             title: 'The query parameter is not supported.',
             source: {
               parameter: key,
             },
           })
+        } else {
+          log.debug(`Query parameter '${key}' not specified and strict mode is disabled -> ignoring it (${method} ${path})`)
         }
       } else {
         const paramDefinition = parameterDefinitions.splice(paramDefinitionIndex, 1)[0]
@@ -145,7 +158,7 @@ export class AjvOpenApiValidator {
         const rejectEmptyValues = !(paramDefinition.param.allowEmptyValue === true)
         if (rejectEmptyValues && (value === undefined || value === null || String(value).trim() === '')) {
           errResponse.push({
-            status: STATUS_BAD_REQUEST,
+            status: HttpStatus.BAD_REQUEST,
             code: `${EC_VALIDATION}-query-parameter`,
             title: 'The query parameter must not be empty.',
             source: {
@@ -161,7 +174,7 @@ export class AjvOpenApiValidator {
           const res = validator(value)
 
           if (!res) {
-            const validationErrors = mapValidatorErrors(validator.errors)
+            const validationErrors = mapValidatorErrors(validator.errors, HttpStatus.BAD_REQUEST)
             errResponse = errResponse.concat(validationErrors)
           }
         }
@@ -173,7 +186,7 @@ export class AjvOpenApiValidator {
         .filter((p) => p.param.required)
         .forEach((p) => {
           errResponse.push({
-            status: STATUS_BAD_REQUEST,
+            status: HttpStatus.BAD_REQUEST,
             code: `${EC_VALIDATION}-required-query-parameter`,
             title: 'The query parameter is required.',
             source: {
@@ -186,25 +199,30 @@ export class AjvOpenApiValidator {
     return errResponse.length ? errResponse : undefined
   }
 
-  validateRequestBody(path: string, method: string, data: unknown, strict = true): ErrorObj[] | undefined {
+  validateRequestBody(path: string, method: string, data: unknown, strict = true, logger?: Logger): ErrorObj[] | undefined {
     const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
+    const log = logger ? logger : this.validatorOpts.logger
 
     if (data !== undefined && data !== null) {
       if (validator?.validator) {
-        return this.validateBody(validator.validator, data)
-      } else if (strict) {
-        return [
-          {
-            status: STATUS_BAD_REQUEST,
-            code: `${EC_VALIDATION}-unexpected-request-body`,
-            title: 'A request body is not supported',
-          },
-        ]
+        return this.validateBody(validator.validator, data, HttpStatus.BAD_REQUEST)
+      } else {
+        if (strict) {
+          return [
+            {
+              status: HttpStatus.BAD_REQUEST,
+              code: `${EC_VALIDATION}-unexpected-request-body`,
+              title: 'A request body is not supported',
+            },
+          ]
+        } else {
+          log.debug(`Request body is present, but not specified. Strict mode is disabled -> ignoring it (${method} ${path})`)
+        }
       }
     } else if (validator?.required) {
       return [
         {
-          status: STATUS_BAD_REQUEST,
+          status: HttpStatus.BAD_REQUEST,
           code: `${EC_VALIDATION}-missing-request-body`,
           title: 'A request body is required',
         },
@@ -214,31 +232,43 @@ export class AjvOpenApiValidator {
     return undefined
   }
 
-  validateResponseBody(path: string, method: string, status: string | number, data: unknown, strict = true): ErrorObj[] | undefined {
+  validateResponseBody(
+    path: string,
+    method: string,
+    status: string | number,
+    data: unknown,
+    strict = true,
+    logger?: Logger
+  ): ErrorObj[] | undefined {
+    const log = logger ? logger : this.validatorOpts.logger
     const validator = this.responseBodyValidators.find(
       (v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase() && v.status === status + ''
     )?.validator
     if (validator) {
-      return this.validateBody(validator, data)
-    } else if (data !== undefined && data !== null && strict) {
-      return [
-        {
-          status: STATUS_BAD_REQUEST,
-          code: `${EC_VALIDATION}-unexpected-response-body`,
-          title: 'A response body is not supported',
-        },
-      ]
-    } else {
-      return undefined
+      return this.validateBody(validator, data, HttpStatus.INTERNAL_SERVER_ERROR)
+    } else if (data !== undefined && data !== null) {
+      if (strict) {
+        return [
+          {
+            status: HttpStatus.INTERNAL_SERVER_ERROR,
+            code: `${EC_VALIDATION}-unexpected-response-body`,
+            title: 'A response body is not supported',
+          },
+        ]
+      } else {
+        log.debug(`Response body is present, but not specified. Strict mode is disabled -> ignoring it (${method} ${path})`)
+      }
     }
+
+    return undefined
   }
 
-  validateBody(validator: ValidateFunction<unknown>, data: unknown): ErrorObj[] | undefined {
+  validateBody(validator: ValidateFunction<unknown>, data: unknown, errStatus: HttpStatus): ErrorObj[] | undefined {
     const filteredData = this.validatorOpts.convertDatesToIsoString ? convertDatesToISOString(data) : data
     const res = validator(filteredData)
 
     if (!res) {
-      return mapValidatorErrors(validator.errors)
+      return mapValidatorErrors(validator.errors, errStatus)
     }
 
     return undefined
@@ -449,10 +479,14 @@ export class AjvOpenApiValidator {
             })
 
             if (this.validatorOpts.coerceTypes == true && resolvedParams.length > 0) {
-              this.requestCoercer = new OpenapiRequestCoercer({
-                logger: this.validatorOpts.logger,
-                enableObjectCoercion: true,
-                parameters: resolvedParams,
+              this.requestCoercers.push({
+                path: path.toLowerCase(),
+                method: method.toLowerCase() as string,
+                coercer: new OpenapiRequestCoercer({
+                  logger: this.validatorOpts.logger,
+                  enableObjectCoercion: true,
+                  parameters: resolvedParams,
+                }),
               })
             }
           }
@@ -531,30 +565,5 @@ export class AjvOpenApiValidator {
     }
 
     return { ...parameter, schema: this.fullyResolveSchemaRefs(document, parameter.schema) }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private unserializeParameters(parameters: Record<string, Primitive>): Record<string, any> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: Record<string, any> = {}
-    for (const key in parameters) {
-      const value = parameters[key]
-      let target = result
-      const splitKey = key.split('[')
-      const lastKeyIndex = splitKey.length - 1
-
-      splitKey.forEach((part, index) => {
-        const cleanPart = part.replace(']', '')
-
-        if (index === lastKeyIndex) {
-          target[cleanPart] = value
-        } else {
-          if (!target[cleanPart]) target[cleanPart] = {}
-          target = target[cleanPart]
-        }
-      })
-    }
-
-    return result
   }
 }

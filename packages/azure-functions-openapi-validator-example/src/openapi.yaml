@@ -9,12 +9,6 @@ security:
 paths:
   '/users':
     post:
-      parameters:
-        - name: uid
-          in: path
-          required: true
-          schema:
-            type: string
       requestBody:
         content:
           application/json:

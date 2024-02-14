@@ -1,14 +1,20 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   HttpHandler,
   HttpRequest,
   HttpResponse,
   HttpResponseInit,
   InvocationContext,
+  PostInvocationContext,
+  PostInvocationHandler,
   PreInvocationContext,
   PreInvocationHandler,
 } from '@azure/functions'
 import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
 import { createJsonResponse, logMessage } from './helper'
+
+const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_query-param-validation-error'
+const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_request-body-validation-error'
 
 export interface ValidationMode {
   /** whether to return an error response in case of a validation error instead of the actual function result */
@@ -57,7 +63,7 @@ export const DEFAULT_HOOK_OPTIONS: ValidatorHookOptions = {
 }
 
 function isHttpResponseWithBody(response: HttpResponseInit | HttpResponse): response is HttpResponse {
-  return response && (response as HttpResponse).body !== undefined
+  return response && (response as HttpResponse).body !== undefined && (response as HttpResponse).body !== null
 }
 
 export function configureValidationPreInvocationHandler(
@@ -81,10 +87,14 @@ export function configureValidationPreInvocationHandler(
           (!exclusion || (exclusion.validation !== false && exclusion.validation.queryParmeter !== false))
         ) {
           context.debug(`Validating query parameters '${path}', '${method}'`)
-          const reqParamsValResult = validator.validateQueryParams(path, method, request.query, opts.queryParameterValidationMode.strict)
+          const reqParamsValResult = validator.validateQueryParams(
+            path,
+            method,
+            request.query,
+            opts.queryParameterValidationMode.strict,
+            context
+          )
           if (reqParamsValResult) {
-            preContext.hookData.requestQueryParameterValidationError = true
-
             if (opts.queryParameterValidationMode.logLevel !== 'off') {
               logMessage(
                 `Query param validation error: ${JSON.stringify(reqParamsValResult)}`,
@@ -94,7 +104,8 @@ export function configureValidationPreInvocationHandler(
             }
 
             if (opts.queryParameterValidationMode.returnErrorResponse) {
-              return Promise.resolve(createJsonResponse(reqParamsValResult, 400))
+              preContext.hookData[HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY] = true
+              return Promise.resolve(createJsonResponse({ errors: reqParamsValResult }, 400))
             }
           }
         }
@@ -115,10 +126,8 @@ export function configureValidationPreInvocationHandler(
             parsedBody = await origRequest.json()
           }
 
-          const reqBodyValResult = validator.validateRequestBody(path, method, parsedBody, opts.requestBodyValidationMode.strict)
+          const reqBodyValResult = validator.validateRequestBody(path, method, parsedBody, opts.requestBodyValidationMode.strict, context)
           if (reqBodyValResult) {
-            preContext.hookData.requestBodyValidationError = true
-
             if (opts.requestBodyValidationMode.logLevel !== 'off') {
               logMessage(
                 `Request body validation error: ${JSON.stringify(reqBodyValResult)}`,
@@ -128,65 +137,88 @@ export function configureValidationPreInvocationHandler(
             }
 
             if (opts.requestBodyValidationMode.returnErrorResponse) {
-              return Promise.resolve(createJsonResponse(reqBodyValResult, 400))
+              preContext.hookData[HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY] = true
+              return Promise.resolve(createJsonResponse({ errors: reqBodyValResult }, 400))
             }
           }
         }
 
-        let response = await originalHandler(request, context)
+        return await originalHandler(request, context)
+      }
+    }
+  }
+}
 
-        if (
-          opts.responseBodyValidationMode &&
-          (!exclusion || (exclusion.validation !== false && exclusion.validation.responseBody !== false))
-        ) {
-          context.debug(`Validating response body for '${path}', '${method}', '${response.status}'`)
+export function configureValidationPostInvocationHandler(
+  validator: AjvOpenApiValidator,
+  opts: ValidatorHookOptions = DEFAULT_HOOK_OPTIONS
+): PostInvocationHandler {
+  return async (postContext: PostInvocationContext) => {
+    const context = postContext.invocationContext
 
-          let responseBody = undefined
-          if (isHttpResponseWithBody(response)) {
-            const origResponse = response
-            // a copy is necessary, because the response body can only be consumed once
-            response = origResponse.clone()
+    if (context.options.trigger.type === 'httpTrigger') {
+      if (
+        postContext.hookData[HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY] ||
+        postContext.hookData[HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY]
+      ) {
+        context.debug('Skipping response body validation due to request validation errors')
+        return
+      }
 
-            try {
-              responseBody = await origResponse.json()
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (err: any) {
-              throw new Error(`Error parsing response body of ${method} ${path}: ${err.message}`)
-            }
-          } else {
-            responseBody = response.jsonBody ? response.jsonBody : undefined
-            if (responseBody === undefined) {
-              if (typeof response.body === 'string') {
-                responseBody = JSON.parse(response.body)
-              } else if (response.body !== undefined) {
-                throw new Error(`Response body format '${typeof response.body}' not supported by validator.`)
-              }
-            }
-          }
+      if (!postContext.inputs || postContext.inputs.length < 1) {
+        context.error('No request input found in post invocation context')
+        return
+      }
 
-          const respBodyValResult = validator.validateResponseBody(
-            path,
-            method,
-            response.status ?? 200,
-            responseBody,
-            opts.responseBodyValidationMode.strict
-          )
-          if (respBodyValResult) {
-            if (opts.responseBodyValidationMode.logLevel !== 'off') {
-              logMessage(
-                `Response body validation error: ${JSON.stringify(respBodyValResult)}`,
-                opts.responseBodyValidationMode.logLevel,
-                context
-              )
-            }
+      const path = '/' + context.options.trigger.route
+      const request = postContext.inputs[0] as HttpRequest
+      const method = request.method
+      const exclusion = opts.exclude?.find(
+        (exclusion) => exclusion.path.toLowerCase() === path.toLowerCase() && exclusion.method.toLowerCase() === method.toLowerCase()
+      )
 
-            if (opts.responseBodyValidationMode.returnErrorResponse) {
-              return Promise.resolve(createJsonResponse(respBodyValResult, 500))
-            }
+      const origResponse = new HttpResponse(postContext.result as HttpResponseInit)
+
+      if (
+        opts.responseBodyValidationMode &&
+        (!exclusion || (exclusion.validation !== false && exclusion.validation.responseBody !== false))
+      ) {
+        context.debug(`Validating response body for '${path}', '${method}', '${origResponse.status}'`)
+
+        let responseBody = undefined
+        if (isHttpResponseWithBody(origResponse)) {
+          // a copy is necessary, because the response body can only be consumed once
+          const clonedResponse = origResponse.clone()
+
+          try {
+            responseBody = await clonedResponse.json()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } catch (err: any) {
+            throw new Error(`Error parsing response body of ${method} ${path}: ${err.message}`)
           }
         }
 
-        return response
+        const respBodyValResult = validator.validateResponseBody(
+          path,
+          method,
+          origResponse.status ?? 200,
+          responseBody,
+          opts.responseBodyValidationMode.strict,
+          context
+        )
+        if (respBodyValResult) {
+          if (opts.responseBodyValidationMode.logLevel !== 'off') {
+            logMessage(
+              `Response body validation error: ${JSON.stringify(respBodyValResult)}`,
+              opts.responseBodyValidationMode.logLevel,
+              context
+            )
+          }
+
+          if (opts.responseBodyValidationMode.returnErrorResponse) {
+            postContext.result = createJsonResponse({ errors: respBodyValResult }, 500)
+          }
+        }
       }
     }
   }
