@@ -174,6 +174,7 @@ describe('The app validator', () => {
   })
 
   it('should pass get request', async () => {
+    mockValidator.validateQueryParams.mockReturnValueOnce({ errors: undefined, normalizedParams: {} })
     const handler = configureValidationPreInvocationHandler(mockValidator)
     const ctx = getMockPreContext('api/v1/health', JSON.stringify({ status: 'ok' }))
     await handler(ctx)
@@ -187,7 +188,7 @@ describe('The app validator', () => {
   })
 
   it('should fail with query parameter validation error', async () => {
-    mockValidator.validateQueryParams.mockReturnValueOnce([MOCK_ERROR])
+    mockValidator.validateQueryParams.mockReturnValueOnce({ errors: [MOCK_ERROR], normalizedParams: {} })
     const handler = configureValidationPreInvocationHandler(mockValidator)
     const ctx = getMockPreContext('api/v1/health?something', JSON.stringify({ status: 'ok' }))
     await handler(ctx)
@@ -207,6 +208,7 @@ describe('The app validator', () => {
   })
 
   it('should pass post request without body', async () => {
+    mockValidator.validateQueryParams.mockReturnValueOnce({ errors: undefined, normalizedParams: {} })
     const handler = configureValidationPreInvocationHandler(mockValidator)
     const ctx = getMockPreContext('api/v1/messages', JSON.stringify({ status: 'ok' }))
     await handler(ctx)
@@ -226,6 +228,7 @@ describe('The app validator', () => {
   })
 
   it('should pass post request', async () => {
+    mockValidator.validateQueryParams.mockReturnValueOnce({ errors: undefined, normalizedParams: {} })
     const handler = configureValidationPreInvocationHandler(mockValidator)
     const ctx = getMockPreContext('api/v1/messages', JSON.stringify({ status: 'ok' }))
     await handler(ctx)
@@ -245,6 +248,7 @@ describe('The app validator', () => {
   })
 
   it('should fail with post request body validation error', async () => {
+    mockValidator.validateQueryParams.mockReturnValueOnce({ errors: undefined, normalizedParams: {} })
     mockValidator.validateRequestBody.mockReturnValueOnce([MOCK_ERROR])
     const handler = configureValidationPreInvocationHandler(mockValidator)
     const ctx = getMockPreContext('api/v1/messages', JSON.stringify({ status: 'ok' }))

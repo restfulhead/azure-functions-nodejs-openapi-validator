@@ -62,6 +62,28 @@ setupValidation(openApiSpec, {
 })
 ```
 
+## Hook data
+
+This library uses the following keys for setting hook data, which can be used by other hooks or passed to your function handler.
+
+* `azure-functions-openapi-validator_query-param-validation-error`: An array of query parameter validation errors or undefined
+* `azure-functions-openapi-validator_request-body-validation-error`: An array of request body validation errors or undefined
+* `azure-functions-openapi-validator_normalized-query-params`: The coerced (if enabled) and normalized query params
+
+For example, if you enabled query parameter coercion (default), then coerced query parameters can be accesse by later hooks like so:
+
+```ts
+app.hook.preInvocation((preContext: PreInvocationContext) => {
+  const origHandler = preContext.functionHandler
+  preContext.functionHandler = (origRequest: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> | HttpResponseInit => {
+    const result = origHandler(origRequest, context)
+    const normalizedQueryParams = preContext.hookData[HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY]
+    console.log('Normalized query params', JSON.stringify(normalizedQueryParams))
+    return result
+  }
+})
+```
+
 ## License and Attribution
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)

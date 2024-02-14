@@ -13,8 +13,9 @@ import {
 import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
 import { createJsonResponse, logMessage } from './helper'
 
-const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_query-param-validation-error'
-const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_request-body-validation-error'
+export const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_query-param-validation-error'
+export const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_request-body-validation-error'
+export const HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY = 'azure-functions-openapi-validator_normalized-query-params'
 
 export interface ValidationMode {
   /** whether to return an error response in case of a validation error instead of the actual function result */
@@ -94,10 +95,13 @@ export function configureValidationPreInvocationHandler(
             opts.queryParameterValidationMode.strict,
             context
           )
-          if (reqParamsValResult) {
+
+          preContext.hookData[HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY] = reqParamsValResult.normalizedParams
+
+          if (reqParamsValResult?.errors) {
             if (opts.queryParameterValidationMode.logLevel !== 'off') {
               logMessage(
-                `Query param validation error: ${JSON.stringify(reqParamsValResult)}`,
+                `Query param validation error: ${JSON.stringify(reqParamsValResult.errors)}`,
                 opts.queryParameterValidationMode.logLevel,
                 context
               )
@@ -105,7 +109,7 @@ export function configureValidationPreInvocationHandler(
 
             if (opts.queryParameterValidationMode.returnErrorResponse) {
               preContext.hookData[HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY] = true
-              return Promise.resolve(createJsonResponse({ errors: reqParamsValResult }, 400))
+              return Promise.resolve(createJsonResponse({ errors: reqParamsValResult.errors }, 400))
             }
           }
         }

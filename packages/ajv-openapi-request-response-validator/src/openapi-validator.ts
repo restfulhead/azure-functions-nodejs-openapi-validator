@@ -1,3 +1,4 @@
+import { CoercionStrategy } from 'openapi-request-coercer'
 import { OpenAPIV3 } from 'openapi-types'
 import { Logger } from 'ts-log'
 
@@ -86,7 +87,7 @@ export interface ValidatorOpts {
   /** whether to convert all dates of validation objects to ISO strings before validating (true by default) */
   convertDatesToIsoString?: boolean
   /** whether to coerce header, path, query and formData request properties prior to AJV validation (true by default) */
-  coerceTypes?: boolean
+  coerceTypes?: boolean | 'strict'
   /** whether to fail initialization if one of the schema compilations fails (true by default) */
   strict?: boolean
   /** function used to log messages (console by default) */
@@ -151,4 +152,39 @@ export function unserializeParameters(parameters: Record<string, Primitive>): Re
   }
 
   return result
+}
+
+export const STRICT_COERCION_STRATEGY: CoercionStrategy = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  boolean: (input: any) => {
+    if (typeof input === 'boolean') {
+      return input
+    }
+    if (input === null || input === undefined) {
+      return input
+    }
+
+    if (input.toLowerCase() === 'false') {
+      return false
+    } else if (input.toLowerCase() === 'true') {
+      return true
+    } else {
+      return null
+    }
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  integer: (input: any) => {
+    const asNumber = Number(input)
+    if (isNaN(asNumber)) {
+      return input
+    }
+    return asNumber === Math.floor(asNumber) ? asNumber : input
+  },
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  number: (input: any) => {
+    const result = Number(input)
+    return result === null || isNaN(result) ? input : result
+  },
 }

@@ -17,6 +17,7 @@ import {
   Primitive,
   isURLSearchParams,
   unserializeParameters,
+  STRICT_COERCION_STRATEGY,
 } from './openapi-validator'
 import { merge, openApiMergeRules } from 'allof-merge'
 
@@ -111,7 +112,7 @@ export class AjvOpenApiValidator {
     origParams: Record<string, Primitive> | URLSearchParams,
     strict = true,
     logger?: Logger
-  ): ErrorObj[] | undefined {
+  ): { normalizedParams: Record<string, Primitive>; errors: ErrorObj[] | undefined } {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
 
     const log = logger ? logger : this.validatorOpts.logger
@@ -196,7 +197,7 @@ export class AjvOpenApiValidator {
         })
     }
 
-    return errResponse.length ? errResponse : undefined
+    return { normalizedParams: params, errors: errResponse.length ? errResponse : undefined }
   }
 
   validateRequestBody(path: string, method: string, data: unknown, strict = true, logger?: Logger): ErrorObj[] | undefined {
@@ -274,7 +275,7 @@ export class AjvOpenApiValidator {
     return undefined
   }
 
-  private initialize(origSpec: OpenAPIV3.Document, coerceTypes: boolean): void {
+  private initialize(origSpec: OpenAPIV3.Document, coerceTypes: boolean | 'strict'): void {
     const schemaCompileFailures: string[] = []
     const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() })
 
@@ -478,7 +479,7 @@ export class AjvOpenApiValidator {
               }
             })
 
-            if (this.validatorOpts.coerceTypes == true && resolvedParams.length > 0) {
+            if (this.validatorOpts.coerceTypes && resolvedParams.length > 0) {
               this.requestCoercers.push({
                 path: path.toLowerCase(),
                 method: method.toLowerCase() as string,
@@ -486,6 +487,7 @@ export class AjvOpenApiValidator {
                   logger: this.validatorOpts.logger,
                   enableObjectCoercion: true,
                   parameters: resolvedParams,
+                  coercionStrategy: this.validatorOpts.coerceTypes === 'strict' ? STRICT_COERCION_STRATEGY : undefined,
                 }),
               })
             }

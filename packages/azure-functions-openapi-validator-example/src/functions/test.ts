@@ -1,7 +1,12 @@
 import * as fs from 'fs'
 import * as yaml from 'js-yaml'
-import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions'
-import { createJsonResponse, setupValidation, DEFAULT_HOOK_OPTIONS } from '@restfulhead/azure-functions-nodejs-openapi-validator'
+import { app, HttpRequest, HttpResponseInit, InvocationContext, PreInvocationContext } from '@azure/functions'
+import {
+  createJsonResponse,
+  setupValidation,
+  DEFAULT_HOOK_OPTIONS,
+  HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY,
+} from '@restfulhead/azure-functions-nodejs-openapi-validator'
 
 /***
  * Load the OpenAPI spec from a file and setup the validator
@@ -17,6 +22,16 @@ setupValidation(openApiSpec, {
     logLevel: 'warn',
     strict: true,
   },
+})
+
+app.hook.preInvocation((preContext: PreInvocationContext) => {
+  const origHandler = preContext.functionHandler
+  preContext.functionHandler = (origRequest: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> | HttpResponseInit => {
+    const result = origHandler(origRequest, context)
+    const normalizedQueryParams = preContext.hookData[HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY]
+    console.log('Normalized query params', JSON.stringify(normalizedQueryParams))
+    return result
+  }
 })
 
 /**

@@ -128,9 +128,9 @@ describe('The api validator', () => {
                   fixture.requestOpts?.strictQueryParamValidation ?? true
                 )
                 if (fixture.expectedErrors) {
-                  expect(result).toEqual(fixture.expectedErrors)
+                  expect(result.errors).toEqual(fixture.expectedErrors)
                 } else {
-                  expect(result).toBeUndefined()
+                  expect(result.errors).toBeUndefined()
                 }
               }
               if (operation.requestBody && fixture.request.body) {

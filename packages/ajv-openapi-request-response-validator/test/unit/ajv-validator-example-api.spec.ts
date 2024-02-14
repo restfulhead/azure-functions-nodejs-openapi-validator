@@ -4,11 +4,14 @@ import { createAjvInstance } from '../../src/ajv-factory'
 
 describe('The api validator for the user api spec', () => {
   let validator: AjvOpenApiValidator
+  let validatorWithoutCoercion: AjvOpenApiValidator
+  let validatorWithStrictCoercion: AjvOpenApiValidator
 
   beforeAll(async () => {
     const spec = await loadSpec('example-api.yaml')
-    const ajv = createAjvInstance()
-    validator = new AjvOpenApiValidator(spec, ajv)
+    validator = new AjvOpenApiValidator(spec, createAjvInstance())
+    validatorWithoutCoercion = new AjvOpenApiValidator(spec, createAjvInstance(), { coerceTypes: false })
+    validatorWithStrictCoercion = new AjvOpenApiValidator(spec, createAjvInstance(), { coerceTypes: 'strict' })
   })
 
   it('should succeed ApiError model validation', () => {
@@ -117,44 +120,68 @@ describe('The api validator for the user api spec', () => {
   })
 
   it('should succeed parameter validation', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 3, booleanparam: true }, true)).toEqual(undefined)
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 3, booleanparam: true }, true)).toEqual({
+      errors: undefined,
+      normalizedParams: { booleanparam: true, requirednumberparam: 3 },
+    })
   })
 
   it('should fail parameter validation - missing required parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', {}, true)).toEqual([
-      {
-        code: 'Validation-required-query-parameter',
-        source: { parameter: 'requirednumberparam' },
-        status: 400,
-        title: 'The query parameter is required.',
-      },
-    ])
+    expect(validator.validateQueryParams('/users/{uid}', 'put', {}, true)).toEqual({
+      normalizedParams: {},
+      errors: [
+        {
+          code: 'Validation-required-query-parameter',
+          source: { parameter: 'requirednumberparam' },
+          status: 400,
+          title: 'The query parameter is required.',
+        },
+      ],
+    })
   })
 
-  it('should fail parameter validation - empty parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: '' }, true)).toEqual([
-      {
-        code: 'Validation-query-parameter',
-        source: { parameter: 'requirednumberparam' },
-        status: 400,
-        title: 'The query parameter must not be empty.',
+  it('should fail parameter validation - empty number parameter without coercion', () => {
+    expect(validatorWithoutCoercion.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: '' }, true)).toEqual({
+      normalizedParams: {
+        requirednumberparam: '',
       },
-    ])
+      errors: [
+        {
+          code: 'Validation-query-parameter',
+          source: { parameter: 'requirednumberparam' },
+          status: 400,
+          title: 'The query parameter must not be empty.',
+        },
+      ],
+    })
+  })
+
+  it('should succeed parameter validation - empty parameter with coercion', () => {
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: '' }, true)).toEqual({
+      normalizedParams: { requirednumberparam: 0 },
+      errors: undefined,
+    })
   })
 
   it('should fail parameter validation - extra parameter', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, true)).toEqual([
-      {
-        code: 'Validation-invalid-query-parameter',
-        source: { parameter: 'unspecified' },
-        status: 400,
-        title: 'The query parameter is not supported.',
-      },
-    ])
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, true)).toEqual({
+      errors: [
+        {
+          code: 'Validation-invalid-query-parameter',
+          source: { parameter: 'unspecified' },
+          status: 400,
+          title: 'The query parameter is not supported.',
+        },
+      ],
+      normalizedParams: { requirednumberparam: 1, unspecified: 'hello' },
+    })
   })
 
   it('should succeed parameter validation - extra parameter non strict', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, false)).toEqual(undefined)
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 1, unspecified: 'hello' }, false)).toEqual({
+      errors: undefined,
+      normalizedParams: { requirednumberparam: 1, unspecified: 'hello' },
+    })
   })
 
   it('should succeed parameter validation - non string types', () => {
@@ -165,72 +192,143 @@ describe('The api validator for the user api spec', () => {
         { mode: 'something', requirednumberparam: 1.2, booleanparam: true, integerparam: 3 },
         false
       )
-    ).toEqual(undefined)
+    ).toEqual({ errors: undefined, normalizedParams: { booleanparam: true, integerparam: 3, mode: 'something', requirednumberparam: 1.2 } })
   })
 
-  it('should fail parameter validation - non string types', () => {
+  it('should succeed parameter validation - non strict coercion', () => {
     expect(
       validator.validateQueryParams(
+        '/users/{uid}',
+        'put',
+        { mode: 'something', requirednumberparam: null, booleanparam: 'maybe', integerparam: 1.2 },
+        false
+      )
+    ).toEqual({
+      errors: undefined,
+      normalizedParams: { booleanparam: true, integerparam: 1, mode: 'something', requirednumberparam: 0 },
+    })
+  })
+
+  it('should fail parameter validation - non string types strict coercion', () => {
+    expect(
+      validatorWithStrictCoercion.validateQueryParams(
+        '/users/{uid}',
+        'put',
+        { mode: 'something', requirednumberparam: 'notanumber', booleanparam: null, integerparam: 1.2 },
+        false
+      )
+    ).toEqual({
+      errors: [
+        {
+          status: 400,
+          code: 'Validation-type',
+          title: 'must be number',
+          source: { pointer: '#/paths/users/uid/put/parameters/requirednumberparam/type' },
+        },
+        {
+          status: 400,
+          code: 'Validation-query-parameter',
+          title: 'The query parameter must not be empty.',
+          source: { parameter: 'booleanparam' },
+        },
+        {
+          status: 400,
+          code: 'Validation-type',
+          title: 'must be integer',
+          source: { pointer: '#/paths/users/uid/put/parameters/integerparam/type' },
+        },
+      ],
+      normalizedParams: { booleanparam: null, integerparam: 1.2, mode: 'something', requirednumberparam: 'notanumber' },
+    })
+  })
+
+  it('should fail parameter validation - non string types no coercion', () => {
+    expect(
+      validatorWithoutCoercion.validateQueryParams(
         '/users/{uid}',
         'put',
         { mode: 'something', requirednumberparam: 'notanumber', booleanparam: 'maybe', integerparam: 1.2 },
         false
       )
-    ).toEqual([
-      {
-        code: 'Validation-type',
-        source: { pointer: '#/paths/users/uid/put/parameters/requirednumberparam/type' },
-        status: 400,
-        title: 'must be number',
-      },
-      {
-        code: 'Validation-type',
-        source: { pointer: '#/paths/users/uid/put/parameters/booleanparam/type' },
-        status: 400,
-        title: 'must be boolean',
-      },
-      {
-        code: 'Validation-type',
-        source: { pointer: '#/paths/users/uid/put/parameters/integerparam/type' },
-        status: 400,
-        title: 'must be integer',
-      },
-    ])
+    ).toEqual({
+      errors: [
+        {
+          code: 'Validation-type',
+          source: { pointer: '#/paths/users/uid/put/parameters/requirednumberparam/type' },
+          status: 400,
+          title: 'must be number',
+        },
+        {
+          code: 'Validation-type',
+          source: { pointer: '#/paths/users/uid/put/parameters/booleanparam/type' },
+          status: 400,
+          title: 'must be boolean',
+        },
+        {
+          code: 'Validation-type',
+          source: { pointer: '#/paths/users/uid/put/parameters/integerparam/type' },
+          status: 400,
+          title: 'must be integer',
+        },
+      ],
+      normalizedParams: { booleanparam: 'maybe', integerparam: 1.2, mode: 'something', requirednumberparam: 'notanumber' },
+    })
   })
 
   it('should fail parameter validation - min max', () => {
-    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 2, integerparam: 500 }, false)).toEqual([
-      {
-        code: 'Validation-maximum',
-        source: { pointer: '#/paths/users/uid/put/parameters/integerparam/maximum' },
-        status: 400,
-        title: 'must be <= 5',
-      },
-    ])
+    expect(validator.validateQueryParams('/users/{uid}', 'put', { requirednumberparam: 2, integerparam: 500 }, false)).toEqual({
+      errors: [
+        {
+          code: 'Validation-maximum',
+          source: { pointer: '#/paths/users/uid/put/parameters/integerparam/maximum' },
+          status: 400,
+          title: 'must be <= 5',
+        },
+      ],
+      normalizedParams: { integerparam: 500, requirednumberparam: 2 },
+    })
   })
 
-  fit('should succeed parameter validation - pagination', () => {
+  it('should succeed parameter validation - pagination', () => {
     expect(
       validator.validateQueryParams('/pagination-example', 'get', { filter: 'test', 'page[offset]': '0', 'page[limit]': '12' })
-    ).toEqual(undefined)
+    ).toEqual({
+      normalizedParams: {
+        filter: 'test',
+        page: {
+          limit: 12,
+          offset: 0,
+        },
+      },
+      errors: undefined,
+    })
   })
 
-  it('should fail parameter validation - min max', () => {
+  it('should fail parameter validation - deep object', () => {
     expect(
       validator.validateQueryParams('/pagination-example', 'get', { filter: 'test', 'page[offset]': 'yellow', 'page[limit]': 'nono' })
-    ).toEqual([
-      {
-        code: 'Validation-type',
-        source: { pointer: '#/components/schemas/PageParam/properties/limit/type' },
-        status: 400,
-        title: 'must be integer',
+    ).toEqual({
+      errors: [
+        {
+          code: 'Validation-type',
+          source: { pointer: '#/components/schemas/PageParam/properties/limit/type' },
+          status: 400,
+          title: 'must be integer',
+        },
+        {
+          code: 'Validation-type',
+          source: { pointer: '#/components/schemas/PageParam/properties/offset/type' },
+          status: 400,
+          title: 'must be integer',
+        },
+      ],
+      normalizedParams: {
+        filter: 'test',
+        page: {
+          limit: 'nono',
+          offset: 'yellow',
+        },
       },
-      {
-        code: 'Validation-type',
-        source: { pointer: '#/components/schemas/PageParam/properties/offset/type' },
-        status: 400,
-        title: 'must be integer',
-      },
-    ])
+    })
   })
 })
