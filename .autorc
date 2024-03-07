@@ -1,0 +1,38 @@
+{
+  "plugins": [
+    "@restfulhead/auto-plugin-filter-by-workspace-path",
+    "npm"
+  ],
+  "labels": [
+    {
+      "name": "release-major",
+      "changelogTitle": "💥 Major breaking Change",
+      "releaseType": "major",
+      "color": "#c5000b"
+    },
+    {
+      "name": "release-minor",
+      "changelogTitle": "🚀 Enhancement",
+      "releaseType": "minor",
+      "color": "#F9D0C4"
+    },
+    {
+      "name": "release-patch",
+      "changelogTitle": "🐛 Patch",
+      "releaseType": "patch",
+      "color": "#C2E0C6"
+    },
+    {
+      "name": "release-internal",
+      "changelogTitle": "🔩 Internal",
+      "releaseType": "patch",
+      "color": "#BFD4F2"
+    },
+    {
+      "name": "release-docs",
+      "changelogTitle": "📝 Documentation",
+      "releaseType": "patch",
+      "color": "#BFD4F2"
+    }
+  ]
+}

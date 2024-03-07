@@ -1,11 +1,11 @@
 {
-    "azureFunctions.deploySubpath": "example",
+    "azureFunctions.deploySubpath": "packages/ajv-openapi-request-response-validator",
     "azureFunctions.postDeployTask": "npm install (functions)",
     "azureFunctions.projectLanguage": "TypeScript",
     "azureFunctions.projectRuntime": "~4",
     "debug.internalConsoleOptions": "neverOpen",
     "azureFunctions.projectLanguageModel": 4,
-    "azureFunctions.projectSubpath": "example",
+    "azureFunctions.projectSubpath": "packages/ajv-openapi-request-response-validator",
     "azureFunctions.preDeployTask": "npm prune (functions)",
 
     // Place your settings in this file to overwrite default and user settings.
@@ -27,7 +27,7 @@
     "[json]": {
       "editor.formatOnSave": true
     },
-    "eslint.workingDirectories": ["example", "src", "test"],
+    "eslint.workingDirectories": [{ "mode": "auto" }],
     "eslint.options": {
       "resolvePluginsRelativeTo": "."
     },

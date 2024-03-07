@@ -1,0 +1,42 @@
+{
+  "name": "@restfulhead/azure-functions-openapi-validation-example",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "clean": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "prebuild": "npm run clean",
+    "build": "tsc -b",
+    "build:fast": "tsc -b --incremental",
+    "watch": "tsc -w",
+    "prestart": "npm run clean && npm run build",
+    "start": "func start",
+    "test": "echo \"No tests yet...\"",
+    "lint": "npm run lint:src && npm run lint:test",
+    "lint:src": "eslint -c '.eslintrc.js' './src/**/*.ts'",
+    "lint:test": "echo \"No tests yet...\"",
+    "lint:fix": "npm run lint:fix:src && npm run lint:fix:test",
+    "lint:fix:src": "eslint --fix -c '.eslintrc.js' './src/**/*.ts'",
+    "lint:fix:test": "echo \"No tests yet...\""
+  },
+  "dependencies": {
+    "@azure/functions": "^4.2.0",
+    "@restfulhead/azure-functions-openapi-validator": "^0.0.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "^18.x",
+    "@typescript-eslint/eslint-plugin": "6.16.0",
+    "@typescript-eslint/parser": "6.16.0",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-prettier": "5.1.2",
+    "eslint-import-resolver-typescript": "3.6.1",
+    "eslint-plugin-unused-imports": "3.0.0",
+    "prettier": "3.1.1",
+    "typescript": "5.3.3",
+    "rimraf": "^5.0.0"
+  },
+  "main": "dist/src/functions/*.js"
+}

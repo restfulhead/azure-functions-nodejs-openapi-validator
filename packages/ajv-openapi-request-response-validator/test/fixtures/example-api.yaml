@@ -1,0 +1,323 @@
+openapi: '3.0.0'
+info:
+  title: Test API
+  version: '1.0'
+security:
+  - apiKeyHeader: []
+  - apiKeyQuery: []
+  
+paths:
+  '/users/{uid}':
+    put:
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: optionalparam
+          in: query
+          schema:
+            type: string
+        - name: requirednumberparam
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: booleanparam
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: integerparam
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutUserRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutUserResponse'
+        '400':
+          $ref: '#/components/responses/ResponseError'
+        '500':
+          $ref: '#/components/responses/ResponseError'
+  
+  '/additional-props':
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdditionalPropsAllowed'
+        required: true
+      responses:
+        '500':
+          $ref: '#/components/responses/ResponseError'
+  
+  '/one-of-example':
+    get:
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneOfExample'
+
+  '/all-of-example':
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllOfExample'
+        required: true
+      responses:
+        '500':
+          $ref: '#/components/responses/ResponseError'
+
+  '/pagination-example':
+    get:
+      parameters:
+        - name: page
+          in: query
+          description: >
+            Use the `page[offset]` and `page[limit]` parameters to paginate through the results.
+          schema:
+            $ref: '#/components/schemas/PageParam'
+          style: deepObject
+          explode: true
+          required: true
+        - name: filter
+          in: query
+          description: Use the `filter` parameter to filter the results.
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OffsetPagination'
+components:
+  responses:
+    ResponseError:
+      description: An unexpected server error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Failure'
+
+  schemas:
+    Links:
+      type: object
+      additionalProperties:
+        type: string
+    Failure:
+      type: object
+      required:
+        - errors
+      properties:
+        errors:
+          type: array
+          items:
+            '$ref': '#/components/schemas/ApiError'
+          uniqueItems: true
+    ApiError:
+      type: object
+      required:
+        - status
+        - code
+        - title
+      properties:
+        id:
+          description: A unique identifier for this particular occurrence of the problem.
+          type: string
+        links:
+          '$ref': '#/components/schemas/Links'
+        status:
+          description: The HTTP status code applicable to this problem
+          type: integer
+          minimum: 100
+          maximum: 599
+        code:
+          description: An application-specific error code, expressed as a string value.
+          type: string
+          enum: ["Unknown", "Validation", "Validation-required", "Validation-maxLength", "Validation-minLength", "Validation-type", "Validation-maximum", "Validation-minimum"]
+        title:
+          description: A short, human-readable summary of the problem. It **SHOULD NOT**
+            change from occurrence to occurrence of the problem, except for purposes
+            of localization.
+          type: string
+        detail:
+          description: A human-readable explanation specific to this occurrence of the
+            problem.
+          type: string
+        source:
+          type: object
+          properties:
+            pointer:
+              description: A JSON Pointer [RFC6901] to the associated entity in the
+                request document [e.g. "/data" for a primary data object, or "/data/attributes/title"
+                for a specific attribute].
+              type: string
+            parameter:
+              description: A string indicating which query parameter caused the error.
+              type: string
+   
+    PageParamBase:
+      type: object
+      properties:
+        limit:
+          type: integer
+
+    PageParam:
+      allOf:
+        - $ref: '#/components/schemas/PageParamBase'
+        - type: object
+          properties:
+            offset:
+              type: integer
+            nextLink:
+              type: string
+
+    OffsetPagination:
+      type: object
+      required:
+        - total
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+    
+    PutUserRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+
+    PutUserResponse:
+      type: object
+      required:
+        - arrayAttr
+      properties:
+        arrayAttr:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeVersionPair'
+
+    TimeVersionPair:
+      type: object
+      required:
+        - version
+        - timeAccepted
+      properties:
+        version:
+          type: integer
+        timeAccepted:
+          type: string
+          format: date-time
+
+    TestRequestA:
+      type: object
+      required:
+        - objType
+        - name
+      properties:
+        objType: 
+          type: string
+          enum: [a]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 1000
+        related:
+          type: array
+          items:
+            type: string
+          maxItems: 25
+
+    TestRequestB:
+      type: object
+      required:
+        - objType
+        - somethingElse
+      properties:
+        objType: 
+          type: string
+          enum: [b]
+        somethingElse:
+          type: number
+
+    TestRequestC:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 1000
+
+    TestRequestD:
+      type: object
+      required:
+        - somethingElse
+      properties:
+        somethingElse:
+          type: number
+
+    AdditionalPropsAllowed:
+      type: object
+      additionalProperties: true
+      required:
+        - somethingElse
+      properties:
+        somethingElse:
+          type: number
+
+    OneOfExample:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/TestRequestA'
+        - $ref: '#/components/schemas/TestRequestB'
+      discriminator:
+        propertyName: objType
+
+    AllOfExample:
+      type: object
+      description: Example using allOf
+      allOf:
+        - $ref: '#/components/schemas/TestRequestC'
+        - $ref: '#/components/schemas/TestRequestD'
+        - type: object
+          properties:
+            status:
+              type: string
+              enum: [pending, approved, rejected]
+              
