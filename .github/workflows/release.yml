@@ -1,0 +1,121 @@
+name: Release
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.git-ref }}
+
+      - name: Setup GIT
+        run: |
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          git config user.name "$GITHUB_ACTOR"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        env:
+          CI: true
+        run: |
+          npm ci
+
+      - name: Get workspaces
+        id: get-workspaces
+        run: |
+          echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+          echo "commit=${{ github.sha }}" >> $GITHUB_OUTPUT
+          ws=$(npm ls --omit=dev --depth 1 -json | jq -r '.dependencies[].resolved[11:]')
+          echo 'ws<<EOF' >> $GITHUB_OUTPUT
+          echo $ws >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+
+      - name: Build workspaces
+        env:
+          CI: true
+        run: |
+          npm run build -ws
+
+      - name: Release workspaces
+        if: steps.get-workspaces.outputs.ws != ''  
+        env:
+          CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          topdir=$(pwd)
+          for workspace in ${{ steps.get-workspaces.outputs.ws }}; do
+            if [ "$workspace" = "packages/azure-functions-openapi-validator-example" ]; then
+              echo "Skipping release for $workspace"
+              continue
+            fi
+
+            echo "Potentially going to version and release $workspace"
+            cd $workspace
+            mkdir .git
+
+            PCKG_NAME=`node -pe "require('./package.json').name"`
+            CUR_VERSION_NO=`node -pe "require('./package.json').version"`
+
+            FROM_PARAM=""
+            if [ "$CUR_VERSION_NO" != "0.0.0" ]; then
+              FROM_PARAM="--from ${PCKG_NAME}_v${CUR_VERSION_NO}"
+            fi
+
+            VERSION=`npx auto version $FROM_PARAM`
+            if [ ! -z "$VERSION" ]; then
+              echo "::notice title=✅ Detected $VERSION version change for $PCKG_NAME::Bumping version"
+              npx auto changelog --base-branch ${{ steps.get-workspaces.outputs.branch }} $FROM_PARAM
+              npm version $VERSION -m "chore: bump release version to %s [skip ci]"
+              NEW_VERSION_NO=`node -pe "require('./package.json').version"`
+              git tag -d v$NEW_VERSION_NO
+              NEW_TAG=${PCKG_NAME}_v$NEW_VERSION_NO
+              echo "Going to create a new release for $NEW_TAG"
+              git add -A
+              git commit -m "chore: release v$NEW_VERSION_NO [skip ci]"
+              git tag -a $NEW_TAG -m "chore: tag v$NEW_VERSION_NO [skip ci]"
+              git push "https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY" HEAD:${{ steps.get-workspaces.outputs.branch }} --follow-tags
+              npx auto release --use-version $NEW_TAG $FROM_PARAM --base-branch ${{ steps.get-workspaces.outputs.branch }}
+              IS_PRIVATE=`node -pe "require('./package.json').private"`
+              if [ "$IS_PRIVATE" != "true" ]; then
+                npm publish ./dist
+                echo "::notice title=🚀 ${PCKG_NAME} v$NEW_VERSION_NO::Package versioned and published"
+              fi
+              rm -rf .git
+            else
+              echo "::notice title=Versioning of $PCKG_NAME skipped::No relevant changes detected."
+            fi
+
+            cd $topdir
+          done
+
+      - if: ${{ always() }}
+        name: Clean working directory
+        run: |
+          rm -r *
