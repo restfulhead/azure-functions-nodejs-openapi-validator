@@ -13,9 +13,9 @@ import {
 import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
 import { createJsonResponse, logMessage } from './helper'
 
-export const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_query-param-validation-error'
-export const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = 'azure-functions-openapi-validator_request-body-validation-error'
-export const HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY = 'azure-functions-openapi-validator_normalized-query-params'
+export const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = '@restfulhead/azure-functions-openapi-validator/query-param-validation-error'
+export const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = '@restfulhead/azure-functions-openapi-validator/request-body-validation-error'
+export const HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY = '@restfulhead/azure-functions-openapi-validator/normalized-query-params'
 
 export interface ValidationMode {
   /** whether to return an error response in case of a validation error instead of the actual function result */
