@@ -6,7 +6,7 @@ import {
   setupValidation,
   DEFAULT_HOOK_OPTIONS,
   HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY,
-} from '@restfulhead/azure-functions-nodejs-openapi-validator'
+} from '@restfulhead/azure-functions-openapi-validator'
 
 /***
  * Load the OpenAPI spec from a file and setup the validator

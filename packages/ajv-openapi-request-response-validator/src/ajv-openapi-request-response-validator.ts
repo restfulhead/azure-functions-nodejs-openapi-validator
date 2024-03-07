@@ -277,7 +277,7 @@ export class AjvOpenApiValidator {
 
   private initialize(origSpec: OpenAPIV3.Document, coerceTypes: boolean | 'strict'): void {
     const schemaCompileFailures: string[] = []
-    const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() })
+    const spec: OpenAPIV3.Document = merge(origSpec, { rules: openApiMergeRules() }) as OpenAPIV3.Document
 
     if (hasComponentSchemas(spec)) {
       Object.keys(spec.components.schemas).forEach((key) => {

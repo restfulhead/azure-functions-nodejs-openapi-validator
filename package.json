@@ -23,34 +23,5 @@
   },
   "workspaces": [
     "packages/*"
-  ],
-  "auto": {
-    "labels": [
-      {
-        "name": "release-major",
-        "changelogTitle": "💥 Major Change",
-        "releaseType": "major"
-      },
-      {
-        "name": "release-minor",
-        "changelogTitle": "🚀 Enhancement",
-        "releaseType": "minor"
-      },
-      {
-        "name": "release-patch",
-        "changelogTitle": "🐛 Patch",
-        "releaseType": "patch"
-      },
-      {
-        "name": "release-internal",
-        "changelogTitle": "🔩 Internal",
-        "releaseType": "patch"
-      },
-      {
-        "name": "documentation",
-        "changelogTitle": "📝 Documentation",
-        "releaseType": "patch"
-      }
-    ]
-  }
+  ]
 }
