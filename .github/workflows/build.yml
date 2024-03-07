@@ -32,16 +32,10 @@ jobs:
       run: npm ci
     
     - name: Build
-      run: npm run build:prod
+      run: npm run build -ws
     
     - name: Lint
-      run: npm run lint
+      run: npm run lint -ws
 
     - name: Test
-      run: npm test
-    
-    - name: Release preview
-      run: |
-        npx auto shipit --dry-run
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      run: npm test -ws
