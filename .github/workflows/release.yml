@@ -120,6 +120,9 @@ jobs:
               IS_PRIVATE=`node -pe "require('./package.json').private"`
               rm -rf .git
               if [ "$IS_PRIVATE" != "true" ]; then
+                mkdir ./dist-temp
+                mv ./dist/* ./dist-temp
+                mv ./dist-temp ./dist/dist
                 cp ./package.json ./dist/
                 cd $topdir
                 echo "publishing $workspace/dist"
