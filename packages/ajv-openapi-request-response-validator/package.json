@@ -1,6 +1,6 @@
 {
   "name": "@restfulhead/ajv-openapi-request-response-validator",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "AJV based implementation to validate http requests and responses against an OpenAPI schema",
   "keywords": [
     "azure",
