@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@azure/functions": "^4.2.0",
-    "@restfulhead/azure-functions-openapi-validator": "^0.0.0",
+    "@restfulhead/azure-functions-openapi-validator": "^0.1.0",
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
