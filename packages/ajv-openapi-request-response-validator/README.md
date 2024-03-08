@@ -15,7 +15,7 @@ This library contains an Open API v3.0 validator that validates http requests an
 * The default config sets AJV's `removeAdditional` to `false`, otherwise `allOf` validation may cause unexpected results
 * The default config sets AJV's `coerceTypes` to `false`, otherwise `anyof` validation may cause unexpected results
   * Query params are usually string values on the other hand, so this library coerces those by default prior to validation
-* This library does not validate the Open API specification itself. I suggest you use another tool for this for now.
+* This library does not validate the Open API specification itself. This might be added in future.
 
 To check out what is supported, take a look at the [test fixtures](./test/fixtures/)
 
