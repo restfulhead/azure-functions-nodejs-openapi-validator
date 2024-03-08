@@ -22,7 +22,7 @@ To check out what is supported, take a look at the [test fixtures](./test/fixtur
 ## Getting started
 
 Because the Open API specification can come in different flavors and from different sources, loading the specification file is not in scope
-of this library. To load a YAML based spec, you can for example use `js-yaml` as follows:
+of this library. To load a YAML based spec, you can, for example, use `js-yaml` as follows:
 
 ```typescript
 import * as fs from 'fs'
