@@ -17,7 +17,7 @@ This library contains an Open API v3.0 validator that validates http requests an
   * Query params are usually string values on the other hand, so this library coerces those by default prior to validation
 * This library does not validate the Open API specification itself. I suggest you use another tool for this for now.
 
-To check out what is supported, take a look at the [test fixtures](/test/fixtures/)
+To check out what is supported, take a look at the [test fixtures](./test/fixtures/)
 
 ## Getting started
 

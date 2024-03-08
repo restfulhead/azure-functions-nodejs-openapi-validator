@@ -3,7 +3,7 @@
 This library contains an Open API v3.0 validator and an Azure Functions v4 hook that validates http function requests.
 
 It identifies the Azure function route and tries to find a matching route in the Open API specification. It then validates query parameters, 
-the request body and response body against the schema.
+the request body and response body against a schema.
 
 ## Caveats
 
