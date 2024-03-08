@@ -8,7 +8,8 @@ the request body and response body against a schema.
 ## Caveats
 
 * Please refer to the [ajv-openapi-request-response-validator README](../ajv-openapi-request-response-validator/README.md) to see what's 
-  supported and what's not. You might also want to take a look at the [test fixtures](../ajv-openapi-request-response-validator/test/fixtures/).
+  supported and what's not. You might also want to take a look at the 
+  [test fixtures](../ajv-openapi-request-response-validator/test/fixtures/).
 
 ## Getting started
 
@@ -70,7 +71,8 @@ This library uses the following keys for setting hook data, which can be used by
 * `@restfulhead/azure-functions-openapi-validator/request-body-validation-error`: An array of request body validation errors or undefined
 * `@restfulhead/azure-functions-openapi-validator/normalized-query-params`: The coerced (if enabled) and normalized query params
 
-For example, if you enabled query parameter coercion (default), then coerced query parameters can be accesse by later hooks and functions like so:
+For example, if you enabled query parameter coercion (default), then coerced query parameters can be accesse by later hooks and functions
+like so:
 
 ```ts
 app.hook.preInvocation((preContext: PreInvocationContext) => {
@@ -88,4 +90,6 @@ app.hook.preInvocation((preContext: PreInvocationContext) => {
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
 
-Some of the validation test cases are based on the tests from [openapi-request-validator](`https://github.com/kogosoftwarellc/open-api/tree/main/packages/openapi-request-validator`) by Kogo Software LLC released under MIT.
+Some of the validation test cases are based on the tests from 
+[openapi-request-validator](`https://github.com/kogosoftwarellc/open-api/tree/main/packages/openapi-request-validator`) by Kogo Software LLC
+released under MIT.
