@@ -1,5 +1,5 @@
 {
-  "name": "@restfulhead/nodejs-api-tools",
+  "name": "@restfulhead/azure-functions-nodejs-openapi-validator",
   "version": "0.0.0",
   "description": "Collection of libraries for building Node.js APIs",
   "keywords": [
@@ -10,13 +10,13 @@
   ],
   "author": "Patrick Ruhkopf",
   "license": "MIT",
-  "homepage": "https://github.com/restfulhead/nodejs-api-tools",
+  "homepage": "https://github.com/restfulhead/azure-functions-nodejs-openapi-validator",
   "repository": {
     "type": "git",
-    "url": "https://github.com/restfulhead/nodejs-api-tools.git"
+    "url": "git+https://github.com/restfulhead/azure-functions-nodejs-openapi-validator.git"
   },
   "bugs": {
-    "url": "https://github.com/restfulhead/nodejs-api-tools/issues"
+    "url": "https://github.com/restfulhead/azure-functions-nodejs-openapi-validator/issues"
   },
   "engines": {
     "node": ">=18.0"

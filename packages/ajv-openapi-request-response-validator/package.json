@@ -1,6 +1,6 @@
 {
   "name": "@restfulhead/ajv-openapi-request-response-validator",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "AJV based implementation to validate http requests and responses against an OpenAPI schema",
   "keywords": [
     "azure",
@@ -10,13 +10,17 @@
   ],
   "author": "Patrick Ruhkopf",
   "license": "MIT",
-  "homepage": "https://github.com/restfulhead/nodejs-api-tools/packages/ajv-openapi-request-response-validator",
+  "homepage": "https://github.com/restfulhead/azure-functions-nodejs-openapi-validator/packages/ajv-openapi-request-response-validator",
   "repository": {
     "type": "git",
-    "url": "https://github.com/restfulhead/nodejs-api-tools.git"
+    "url": "git+https://github.com/restfulhead/azure-functions-nodejs-openapi-validator.git"
   },
   "bugs": {
-    "url": "https://github.com/restfulhead/nodejs-api-tools/issues"
+    "url": "https://github.com/restfulhead/azure-functions-nodejs-openapi-validator/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   },
   "engines": {
     "node": ">=18.0"
