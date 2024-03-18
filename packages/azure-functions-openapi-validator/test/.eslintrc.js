@@ -5,5 +5,9 @@ module.exports = {
       sourceType: 'module',
       tsconfigRootDir: __dirname,
     },
-    extends: ["../.eslintrc.js"]
+    extends: ["../.eslintrc.js"],
+    rules: {
+      "@typescript-eslint/no-magic-numbers": "off",
+      "no-console": "off"
+    }
 }

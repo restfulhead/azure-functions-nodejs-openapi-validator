@@ -29,7 +29,7 @@ app.hook.preInvocation((preContext: PreInvocationContext) => {
   preContext.functionHandler = (origRequest: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> | HttpResponseInit => {
     const result = origHandler(origRequest, context)
     const normalizedQueryParams = preContext.hookData[HOOK_DATA_NORMALIZED_QUERY_PARAMS_KEY]
-    console.log('Normalized query params', JSON.stringify(normalizedQueryParams))
+    context.log('Normalized query params', JSON.stringify(normalizedQueryParams))
     return result
   }
 })
@@ -40,6 +40,7 @@ app.hook.preInvocation((preContext: PreInvocationContext) => {
  */
 app.hook.postInvocation(async () => {
   // Add slight delay to ensure logs show up before the invocation finishes
+  // eslint-disable-next-line @typescript-eslint/no-magic-numbers
   await new Promise((resolve) => setTimeout(resolve, 50))
 })
 

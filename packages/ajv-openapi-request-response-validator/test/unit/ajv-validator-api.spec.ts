@@ -67,6 +67,7 @@ for (const file of files) {
     const testName = path.basename(file, '.js.txt').replace(/-/g, ' ')
     const fixtureContent = fs.readFileSync(path.resolve(fixtureDir, file), { encoding: 'utf-8' })
     try {
+      // eslint-disable-next-line no-eval
       const fixture: TestFixture = eval(fixtureContent)
       if (!onlyInclude || onlyInclude.length === 0 || onlyInclude.find((name) => file.includes(name))) {
         testCases[testName] = fixture
@@ -115,14 +116,14 @@ describe('The api validator', () => {
 
     if (fixture.validateArgs.paths) {
       const params = fixture.request.query ? fixture.request.query : {}
-      for (const [path, method] of Object.entries(fixture.validateArgs.paths)) {
+      for (const [methodPath, method] of Object.entries(fixture.validateArgs.paths)) {
         if (method) {
           for (const [methodName, methodDef] of Object.entries(method)) {
             if (Object.values(OpenAPIV3.HttpMethods).includes(methodName as OpenAPIV3.HttpMethods)) {
               const operation: OpenAPIV3.OperationObject<object> = methodDef
               if (operation.parameters) {
                 const result = validator.validateQueryParams(
-                  path,
+                  methodPath,
                   methodName,
                   params,
                   fixture.requestOpts?.strictQueryParamValidation ?? true
@@ -135,7 +136,7 @@ describe('The api validator', () => {
               }
               if (operation.requestBody && fixture.request.body) {
                 const result = validator.validateRequestBody(
-                  path,
+                  methodPath,
                   methodName,
                   fixture.request.body,
                   fixture.requestOpts?.strictRequestBodyValidation ?? true

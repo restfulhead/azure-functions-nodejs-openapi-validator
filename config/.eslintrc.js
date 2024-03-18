@@ -17,8 +17,6 @@ module.exports = {
   rules: {
     'unused-imports/no-unused-imports': 'error',
     'require-await': 'error',
-  },
-  settings: {
     '@typescript-eslint/adjacent-overload-signatures': 'error',
     '@typescript-eslint/array-type': ['error'],
     '@typescript-eslint/await-thenable': 'error',

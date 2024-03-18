@@ -4,6 +4,7 @@ import Ajv, { ErrorObject, ValidateFunction } from 'ajv'
 import OpenapiRequestCoercer from 'openapi-request-coercer'
 import { Logger, dummyLogger } from 'ts-log'
 import { OpenAPIV3 } from 'openapi-types'
+import { merge, openApiMergeRules } from 'allof-merge'
 import {
   convertDatesToISOString,
   ErrorObj,
@@ -19,7 +20,6 @@ import {
   unserializeParameters,
   STRICT_COERCION_STRATEGY,
 } from './openapi-validator'
-import { merge, openApiMergeRules } from 'allof-merge'
 
 const REQ_BODY_COMPONENT_PREFIX_LENGTH = 27 // #/components/requestBodies/PetBody
 const PARAMS_COMPONENT_PREFIX_LENGH = 24 // #/components/parameters/offsetParam
@@ -99,18 +99,30 @@ export class AjvOpenApiValidator {
     validatorOpts?: ValidatorOpts
   ) {
     this.validatorOpts = validatorOpts ? { ...DEFAULT_VALIDATOR_OPTS, ...validatorOpts } : DEFAULT_VALIDATOR_OPTS
-    if (this.validatorOpts.logger == undefined) {
+    if (this.validatorOpts.logger === undefined) {
       this.validatorOpts.logger = dummyLogger
     }
 
     this.initialize(spec, this.validatorOpts.coerceTypes)
   }
 
+  /**
+   * Validates query parameters against the specification. Unless otherwise configured, parameters are coerced to the schema's type.
+   *
+   * @param path - The path of the request
+   * @param method - The HTTP method of the request
+   * @param origParams - The query parameters to validate
+   * @param strict - If true, parameters not defined in the specification will cause a validation error
+   * @param strictExclusions - An array of query parameters to exclude from strict mode
+   * @param logger - A logger instance
+   * @returns An object containing the normalized query parameters and an array of validation errors
+   */
   validateQueryParams(
     path: string,
     method: string,
     origParams: Record<string, Primitive> | URLSearchParams,
     strict = true,
+    strictExclusions: string[] = [],
     logger?: Logger
   ): { normalizedParams: Record<string, Primitive>; errors: ErrorObj[] | undefined } {
     const parameterDefinitions = this.paramsValidators.filter((p) => p.path === path?.toLowerCase() && p.method === method?.toLowerCase())
@@ -138,45 +150,47 @@ export class AjvOpenApiValidator {
     }
 
     for (const key in params) {
-      const value = params[key]
-      const paramDefinitionIndex = parameterDefinitions.findIndex((p) => p.param.name === key?.toLowerCase())
-      if (paramDefinitionIndex < 0) {
-        if (strict) {
-          errResponse.push({
-            status: HttpStatus.BAD_REQUEST,
-            code: `${EC_VALIDATION}-invalid-query-parameter`,
-            title: 'The query parameter is not supported.',
-            source: {
-              parameter: key,
-            },
-          })
-        } else {
-          log.debug(`Query parameter '${key}' not specified and strict mode is disabled -> ignoring it (${method} ${path})`)
-        }
-      } else {
-        const paramDefinition = parameterDefinitions.splice(paramDefinitionIndex, 1)[0]
-
-        const rejectEmptyValues = !(paramDefinition.param.allowEmptyValue === true)
-        if (rejectEmptyValues && (value === undefined || value === null || String(value).trim() === '')) {
-          errResponse.push({
-            status: HttpStatus.BAD_REQUEST,
-            code: `${EC_VALIDATION}-query-parameter`,
-            title: 'The query parameter must not be empty.',
-            source: {
-              parameter: key,
-            },
-          })
-        } else {
-          const validator = paramDefinition.validator
-          if (!validator) {
-            throw new Error('The validator needs to be iniatialized first')
+      if (Object.prototype.hasOwnProperty.call(params, key)) {
+        const value = params[key]
+        const paramDefinitionIndex = parameterDefinitions.findIndex((p) => p.param.name === key?.toLowerCase())
+        if (paramDefinitionIndex < 0) {
+          if (strict && (!Array.isArray(strictExclusions) || !strictExclusions.includes(key))) {
+            errResponse.push({
+              status: HttpStatus.BAD_REQUEST,
+              code: `${EC_VALIDATION}-invalid-query-parameter`,
+              title: 'The query parameter is not supported.',
+              source: {
+                parameter: key,
+              },
+            })
+          } else {
+            log.debug(`Query parameter '${key}' not specified and strict mode is disabled -> ignoring it (${method} ${path})`)
           }
+        } else {
+          const paramDefinition = parameterDefinitions.splice(paramDefinitionIndex, 1)[0]
 
-          const res = validator(value)
+          const rejectEmptyValues = !(paramDefinition.param.allowEmptyValue === true)
+          if (rejectEmptyValues && (value === undefined || value === null || String(value).trim() === '')) {
+            errResponse.push({
+              status: HttpStatus.BAD_REQUEST,
+              code: `${EC_VALIDATION}-query-parameter`,
+              title: 'The query parameter must not be empty.',
+              source: {
+                parameter: key,
+              },
+            })
+          } else {
+            const validator = paramDefinition.validator
+            if (!validator) {
+              throw new Error('The validator needs to be iniatialized first')
+            }
 
-          if (!res) {
-            const validationErrors = mapValidatorErrors(validator.errors, HttpStatus.BAD_REQUEST)
-            errResponse = errResponse.concat(validationErrors)
+            const res = validator(value)
+
+            if (!res) {
+              const validationErrors = mapValidatorErrors(validator.errors, HttpStatus.BAD_REQUEST)
+              errResponse = errResponse.concat(validationErrors)
+            }
           }
         }
       }
@@ -200,6 +214,16 @@ export class AjvOpenApiValidator {
     return { normalizedParams: params, errors: errResponse.length ? errResponse : undefined }
   }
 
+  /**
+   * Validates the request body against the specification.
+   *
+   * @param path - The path of the request
+   * @param method - The HTTP method of the request
+   * @param data - The request body to validate
+   * @param strict - If true and a request body is present, then there must be a request body defined in the specification for validation to continue
+   * @param logger - A logger
+   * @returns - An array of validation errors
+   */
   validateRequestBody(path: string, method: string, data: unknown, strict = true, logger?: Logger): ErrorObj[] | undefined {
     const validator = this.requestBodyValidators.find((v) => v.path === path?.toLowerCase() && v.method === method?.toLowerCase())
     const log = logger ? logger : this.validatorOpts.logger
@@ -233,6 +257,17 @@ export class AjvOpenApiValidator {
     return undefined
   }
 
+  /**
+   * Validates the response body against the specification.
+   *
+   * @param path - The path of the request
+   * @param method - The HTTP method of the request
+   * @param status - The HTTP status code of the response
+   * @param data - The response body to validate
+   * @param strict - If true and a response body is present, then there must be a response body defined in the specification for validation to continue
+   * @param logger - A logger
+   * @returns - An array of validation errors
+   */
   validateResponseBody(
     path: string,
     method: string,
@@ -282,7 +317,7 @@ export class AjvOpenApiValidator {
     if (hasComponentSchemas(spec)) {
       Object.keys(spec.components.schemas).forEach((key) => {
         const schema = spec.components.schemas[key]
-        if (this.validatorOpts.setAdditionalPropertiesToFalse === true) {
+        if (this.validatorOpts.setAdditionalPropertiesToFalse) {
           if (!isValidReferenceObject(schema) && schema.additionalProperties === undefined && schema.discriminator === undefined) {
             schema.additionalProperties = false
           }
@@ -359,22 +394,22 @@ export class AjvOpenApiValidator {
                 path: path.toLowerCase(),
                 method: method.toLowerCase() as string,
                 validator,
-                required: required,
+                required,
               })
             }
           }
 
           if (operation.responses) {
             Object.keys(operation.responses).forEach((key) => {
-              const response = operation.responses[key]
+              const opResponse = operation.responses[key]
 
               let schema: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | undefined
 
-              if (isValidReferenceObject(response)) {
+              if (isValidReferenceObject(opResponse)) {
                 let errorStr: string | undefined
 
-                if (response.$ref.length > RESPONSE_COMPONENT_PREFIX_LENGTH) {
-                  const respName = response.$ref.substring(RESPONSE_COMPONENT_PREFIX_LENGTH)
+                if (opResponse.$ref.length > RESPONSE_COMPONENT_PREFIX_LENGTH) {
+                  const respName = opResponse.$ref.substring(RESPONSE_COMPONENT_PREFIX_LENGTH)
                   if (spec.components?.responses && spec.components?.responses[respName]) {
                     const response = spec.components?.responses[respName]
                     if (!isValidReferenceObject(response)) {
@@ -384,10 +419,10 @@ export class AjvOpenApiValidator {
                       errorStr = `A reference was not expected here: '${response.$ref}'`
                     }
                   } else {
-                    errorStr = `Unable to find response reference '${response.$ref}'`
+                    errorStr = `Unable to find response reference '${opResponse.$ref}'`
                   }
                 } else {
-                  errorStr = `Unable to follow response reference '${response.$ref}'`
+                  errorStr = `Unable to follow response reference '${opResponse.$ref}'`
                 }
                 if (errorStr) {
                   if (this.validatorOpts.strict) {
@@ -396,8 +431,8 @@ export class AjvOpenApiValidator {
                     this.validatorOpts.logger.warn(errorStr)
                   }
                 }
-              } else if (response.content) {
-                schema = this.getJsonContent(response.content)?.schema
+              } else if (opResponse.content) {
+                schema = this.getJsonContent(opResponse.content)?.schema
               }
 
               if (schema) {
@@ -509,7 +544,7 @@ export class AjvOpenApiValidator {
     } else if (content['application/json; charset=utf-8']) {
       return content['application/json; charset=utf-8']
     } else {
-      const key = Object.keys(content).find((key) => key.toLowerCase().startsWith('application/json;'))
+      const key = Object.keys(content).find((k) => k.toLowerCase().startsWith('application/json;'))
       return key ? content[key] : undefined
     }
   }
@@ -519,7 +554,9 @@ export class AjvOpenApiValidator {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return pathParts.reduce((current: any, part) => {
-      if (part === '#' || part === '') return current
+      if (part === '#' || part === '') {
+        return current
+      }
       return current ? current[part] : undefined
     }, document)
   }

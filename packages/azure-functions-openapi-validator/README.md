@@ -27,7 +27,7 @@ const openApiSpec = yaml.load(openApiContent)
 Once you've loaded the specification, use the `setupValidation` function to register the hook.
 
 ```typescript
-import { setupValidation } from '@restfulhead/azure-functions-nodejs-openapi-validator'
+import { setupValidation } from '@restfulhead/azure-functions-openapi-validator'
 
 setupValidation(openApiSpec)
 ```
