@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/naming-convention
 import AjvDraft4 from 'ajv-draft-04'
 import { Options } from 'ajv'
 import addFormats from 'ajv-formats'
@@ -9,7 +10,7 @@ import { AjvExtras, DEFAULT_AJV_EXTRAS, DEFAULT_AJV_SETTINGS } from './ajv-opts'
  * @param validatorOpts - Optional additional validator options
  * @param ajvExtras - Optional additional Ajv features
  */
-export function createAjvInstance(ajvOpts: Options = DEFAULT_AJV_SETTINGS, ajvExtras: AjvExtras = DEFAULT_AJV_EXTRAS) {
+export function createAjvInstance(ajvOpts: Options = DEFAULT_AJV_SETTINGS, ajvExtras: AjvExtras = DEFAULT_AJV_EXTRAS): AjvDraft4 {
   const ajv = new AjvDraft4({ ...DEFAULT_AJV_SETTINGS, ...ajvOpts })
   if (ajvExtras?.addStandardFormats === true) {
     addFormats(ajv)

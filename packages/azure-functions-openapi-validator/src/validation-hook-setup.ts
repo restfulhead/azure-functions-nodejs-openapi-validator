@@ -11,7 +11,7 @@ import {
   PreInvocationHandler,
 } from '@azure/functions'
 import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
-import { createJsonResponse, logMessage } from './helper'
+import { STATUS_CODE_BAD_REQUEST, STATUS_CODE_INTERNAL_SERVER_ERROR, STATUS_CODE_OK, createJsonResponse, logMessage } from './helper'
 
 export const HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY = '@restfulhead/azure-functions-openapi-validator/query-param-validation-error'
 export const HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY = '@restfulhead/azure-functions-openapi-validator/request-body-validation-error'
@@ -22,12 +22,24 @@ export interface ValidationMode {
   returnErrorResponse: boolean
   /** whether to log the validation error */
   logLevel: 'debug' | 'info' | 'warn' | 'error' | 'off'
+  /** if false, extranious query parameters, request and response body are ignored */
   strict: boolean
+}
+
+export interface ExcludeByPathAndMethod {
+  path: string
+  method: string
+  validation: false | { queryParmeter: boolean; requestBody: boolean; responseBody: boolean }
 }
 
 export interface ValidatorHookOptions {
   /** whether to validate query parameters and return an error response or log any errors */
-  queryParameterValidationMode: ValidationMode | false
+  queryParameterValidationMode:
+    | (ValidationMode & {
+        /** ignores extranious query parameters defined here even if `strict` is `true`.  */
+        strictExclusions?: string[]
+      })
+    | false
 
   /** whether to validate the request body and return an error response or log any errors */
   requestBodyValidationMode: ValidationMode | false
@@ -36,7 +48,10 @@ export interface ValidatorHookOptions {
   responseBodyValidationMode: ValidationMode | false
 
   /** exclude specific path + method endpoints from validation */
-  exclude?: { path: string; method: string; validation: false | { queryParmeter: boolean; requestBody: boolean; responseBody: boolean } }[]
+  exclude?: ExcludeByPathAndMethod[]
+
+  /** exclude  */
+  filterOutQueryParams?: string[]
 }
 
 /**
@@ -48,6 +63,7 @@ export const DEFAULT_HOOK_OPTIONS: ValidatorHookOptions = {
     returnErrorResponse: true,
     logLevel: 'info',
     strict: true,
+    strictExclusions: ['code'], // ignore Azure Functions auth code if present, but not specified in the OpenAPI spec
   },
 
   requestBodyValidationMode: {
@@ -80,19 +96,17 @@ export function configureValidationPreInvocationHandler(
         let request = origRequest
         const method = request.method
         const exclusion = opts.exclude?.find(
-          (exclusion) => exclusion.path.toLowerCase() === path.toLowerCase() && exclusion.method.toLowerCase() === method.toLowerCase()
+          (ex) => ex.path.toLowerCase() === path.toLowerCase() && ex.method.toLowerCase() === method.toLowerCase()
         )
 
-        if (
-          opts.queryParameterValidationMode &&
-          (!exclusion || (exclusion.validation !== false && exclusion.validation.queryParmeter !== false))
-        ) {
+        if (opts.queryParameterValidationMode && (!exclusion || (exclusion.validation !== false && exclusion.validation.queryParmeter))) {
           context.debug(`Validating query parameters '${path}', '${method}'`)
           const reqParamsValResult = validator.validateQueryParams(
             path,
             method,
             request.query,
             opts.queryParameterValidationMode.strict,
+            opts.queryParameterValidationMode.strictExclusions,
             context
           )
 
@@ -109,7 +123,7 @@ export function configureValidationPreInvocationHandler(
 
             if (opts.queryParameterValidationMode.returnErrorResponse) {
               preContext.hookData[HOOK_DATA_QUERY_PARAM_VALIDATION_ERROR_KEY] = true
-              return Promise.resolve(createJsonResponse({ errors: reqParamsValResult.errors }, 400))
+              return Promise.resolve(createJsonResponse({ errors: reqParamsValResult.errors }, STATUS_CODE_BAD_REQUEST))
             }
           }
         }
@@ -117,11 +131,11 @@ export function configureValidationPreInvocationHandler(
         if (
           opts.requestBodyValidationMode &&
           request.headers.get('content-type')?.includes('application/json') &&
-          (!exclusion || (exclusion.validation !== false && exclusion.validation.requestBody !== false))
+          (!exclusion || (exclusion.validation !== false && exclusion.validation.requestBody))
         ) {
           context.debug(`Validating request body for '${path}', '${method}'`)
 
-          let parsedBody = undefined
+          let parsedBody
           if (request.body) {
             // a copy is necessary, because the request body can only be consumed once
             // see https://github.com/Azure/azure-functions-nodejs-library/issues/79#issuecomment-1875214147
@@ -142,7 +156,7 @@ export function configureValidationPreInvocationHandler(
 
             if (opts.requestBodyValidationMode.returnErrorResponse) {
               preContext.hookData[HOOK_DATA_REQUEST_BODY_VALIDATION_ERROR_KEY] = true
-              return Promise.resolve(createJsonResponse({ errors: reqBodyValResult }, 400))
+              return Promise.resolve(createJsonResponse({ errors: reqBodyValResult }, STATUS_CODE_BAD_REQUEST))
             }
           }
         }
@@ -178,18 +192,15 @@ export function configureValidationPostInvocationHandler(
       const request = postContext.inputs[0] as HttpRequest
       const method = request.method
       const exclusion = opts.exclude?.find(
-        (exclusion) => exclusion.path.toLowerCase() === path.toLowerCase() && exclusion.method.toLowerCase() === method.toLowerCase()
+        (ex) => ex.path.toLowerCase() === path.toLowerCase() && ex.method.toLowerCase() === method.toLowerCase()
       )
 
       const origResponse = new HttpResponse(postContext.result as HttpResponseInit)
 
-      if (
-        opts.responseBodyValidationMode &&
-        (!exclusion || (exclusion.validation !== false && exclusion.validation.responseBody !== false))
-      ) {
+      if (opts.responseBodyValidationMode && (!exclusion || (exclusion.validation !== false && exclusion.validation.responseBody))) {
         context.debug(`Validating response body for '${path}', '${method}', '${origResponse.status}'`)
 
-        let responseBody = undefined
+        let responseBody
         if (isHttpResponseWithBody(origResponse)) {
           // a copy is necessary, because the response body can only be consumed once
           const clonedResponse = origResponse.clone()
@@ -205,7 +216,7 @@ export function configureValidationPostInvocationHandler(
         const respBodyValResult = validator.validateResponseBody(
           path,
           method,
-          origResponse.status ?? 200,
+          origResponse.status ?? STATUS_CODE_OK,
           responseBody,
           opts.responseBodyValidationMode.strict,
           context
@@ -220,7 +231,7 @@ export function configureValidationPostInvocationHandler(
           }
 
           if (opts.responseBodyValidationMode.returnErrorResponse) {
-            postContext.result = createJsonResponse({ errors: respBodyValResult }, 500)
+            postContext.result = createJsonResponse({ errors: respBodyValResult }, STATUS_CODE_INTERNAL_SERVER_ERROR)
           }
         }
       }

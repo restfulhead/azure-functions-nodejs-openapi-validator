@@ -7,9 +7,6 @@
     "azureFunctions.projectLanguageModel": 4,
     "azureFunctions.projectSubpath": "packages/ajv-openapi-request-response-validator",
     "azureFunctions.preDeployTask": "npm prune (functions)",
-
-    // Place your settings in this file to overwrite default and user settings.
-{
     "git.ignoreLimitWarning": true,
     "typescript.referencesCodeLens.enabled": true,
     "typescript.preferences.importModuleSpecifier": "relative",
@@ -27,7 +24,11 @@
     "[json]": {
       "editor.formatOnSave": true
     },
-    "eslint.workingDirectories": [{ "mode": "auto" }],
+    "eslint.workingDirectories": [
+      {
+        "pattern": "./packages/*/"
+      }
+    ],
     "eslint.options": {
       "resolvePluginsRelativeTo": "."
     },

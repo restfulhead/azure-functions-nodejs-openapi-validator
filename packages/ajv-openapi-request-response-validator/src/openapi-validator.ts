@@ -122,7 +122,9 @@ export function convertDatesToISOString<T>(data: T): DateToISOString<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result: any = Array.isArray(data) ? [] : {}
     for (const key in data) {
-      result[key] = convertDatesToISOString(data[key])
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        result[key] = convertDatesToISOString(data[key])
+      }
     }
     return result
   }
@@ -134,23 +136,26 @@ export function unserializeParameters(parameters: Record<string, Primitive>): Re
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result: Record<string, any> = {}
   for (const key in parameters) {
-    const value = parameters[key]
-    let target = result
-    const splitKey = key.split('[')
-    const lastKeyIndex = splitKey.length - 1
+    if (Object.prototype.hasOwnProperty.call(parameters, key)) {
+      const value = parameters[key]
+      let target = result
+      const splitKey = key.split('[')
+      const lastKeyIndex = splitKey.length - 1
 
-    splitKey.forEach((part, index) => {
-      const cleanPart = part.replace(']', '')
+      splitKey.forEach((part, index) => {
+        const cleanPart = part.replace(']', '')
 
-      if (index === lastKeyIndex) {
-        target[cleanPart] = value
-      } else {
-        if (!target[cleanPart]) target[cleanPart] = {}
-        target = target[cleanPart]
-      }
-    })
+        if (index === lastKeyIndex) {
+          target[cleanPart] = value
+        } else {
+          if (!target[cleanPart]) {
+            target[cleanPart] = {}
+          }
+          target = target[cleanPart]
+        }
+      })
+    }
   }
-
   return result
 }
 

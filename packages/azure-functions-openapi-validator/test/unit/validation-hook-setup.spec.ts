@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { MockProxy, mock, mockReset } from 'jest-mock-extended'
+import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
+import { HttpRequest, HttpResponseInit, PostInvocationContext, PreInvocationContext } from '@azure/functions'
 import {
   ValidatorHookOptions,
   configureValidationPostInvocationHandler,
   configureValidationPreInvocationHandler,
 } from '../../src/validation-hook-setup'
-import { AjvOpenApiValidator } from '@restfulhead/ajv-openapi-request-response-validator'
-import { HttpRequest, HttpResponseInit, PostInvocationContext, PreInvocationContext } from '@azure/functions'
 
 describe('The app validator', () => {
   let mockValidator: MockProxy<AjvOpenApiValidator> & AjvOpenApiValidator
@@ -159,7 +159,7 @@ describe('The app validator', () => {
     }
   }
 
-  const WithResponseValidation: ValidatorHookOptions = {
+  const withResponseValidation: ValidatorHookOptions = {
     responseBodyValidationMode: { returnErrorResponse: true, strict: true, logLevel: 'info' },
     queryParameterValidationMode: false,
     requestBodyValidationMode: false,
@@ -183,7 +183,14 @@ describe('The app validator', () => {
     const functionResult = await ctx.functionHandler(request, MOCK_PRE_CONTEXT.invocationContext)
 
     expect(functionResult).toEqual({ status: 200, body: '{"status":"ok"}' })
-    expect(mockValidator.validateQueryParams).toHaveBeenCalledWith('/api/v1/health', 'GET', new URLSearchParams(), true, expect.anything())
+    expect(mockValidator.validateQueryParams).toHaveBeenCalledWith(
+      '/api/v1/health',
+      'GET',
+      new URLSearchParams(),
+      true,
+      ['code'],
+      expect.anything()
+    )
     expect(mockValidator.validateRequestBody).toHaveBeenCalledTimes(0)
   })
 
@@ -202,6 +209,7 @@ describe('The app validator', () => {
       'GET',
       new URLSearchParams('something'),
       true,
+      ['code'],
       expect.anything()
     )
     expect(mockValidator.validateRequestBody).toHaveBeenCalledTimes(0)
@@ -222,6 +230,7 @@ describe('The app validator', () => {
       'POST',
       new URLSearchParams(),
       true,
+      ['code'],
       expect.anything()
     )
     expect(mockValidator.validateRequestBody).toHaveBeenCalledWith('/api/v1/messages', 'POST', undefined, true, expect.anything())
@@ -242,6 +251,7 @@ describe('The app validator', () => {
       'POST',
       new URLSearchParams(),
       true,
+      ['code'],
       expect.anything()
     )
     expect(mockValidator.validateRequestBody).toHaveBeenCalledWith('/api/v1/messages', 'POST', { hello: 'world' }, true, expect.anything())
@@ -263,13 +273,14 @@ describe('The app validator', () => {
       'POST',
       new URLSearchParams(),
       true,
+      ['code'],
       expect.anything()
     )
     expect(mockValidator.validateRequestBody).toHaveBeenCalledWith('/api/v1/messages', 'POST', { hello: 'world' }, true, expect.anything())
   })
 
   it('should pass no response body', async () => {
-    const handler = configureValidationPostInvocationHandler(mockValidator, WithResponseValidation)
+    const handler = configureValidationPostInvocationHandler(mockValidator, withResponseValidation)
     const ctx = getMockPostContext('api/v1/health', { ...DEFAULT_HTTP_GET_REQUEST }, { status: 200 })
     await handler(ctx)
 
@@ -278,7 +289,7 @@ describe('The app validator', () => {
   })
 
   it('should pass with response body', async () => {
-    const handler = configureValidationPostInvocationHandler(mockValidator, WithResponseValidation)
+    const handler = configureValidationPostInvocationHandler(mockValidator, withResponseValidation)
     const ctx = getMockPostContext('api/v1/health', { ...DEFAULT_HTTP_GET_REQUEST }, { status: 200, jsonBody: { hello: 'ok' } })
     await handler(ctx)
 
@@ -288,7 +299,7 @@ describe('The app validator', () => {
 
   it('should fail with response body', async () => {
     mockValidator.validateResponseBody.mockReturnValueOnce([MOCK_ERROR])
-    const handler = configureValidationPostInvocationHandler(mockValidator, WithResponseValidation)
+    const handler = configureValidationPostInvocationHandler(mockValidator, withResponseValidation)
     const ctx = getMockPostContext('api/v1/health', { ...DEFAULT_HTTP_GET_REQUEST }, { status: 200, jsonBody: { hello: 'ok' } })
     await handler(ctx)
 
