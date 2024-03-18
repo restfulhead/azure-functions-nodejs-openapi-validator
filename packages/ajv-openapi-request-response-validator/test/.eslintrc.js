@@ -5,5 +5,9 @@ module.exports = {
       sourceType: 'module',
       tsconfigRootDir: __dirname,
     },
-    extends: ["../.eslintrc.js"]
+    extends: ["../.eslintrc.js"],
+    rules: {
+      "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-non-null-assertion": "off",
+    }
 }
