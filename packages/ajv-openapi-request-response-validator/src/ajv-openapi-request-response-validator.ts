@@ -320,6 +320,9 @@ export class AjvOpenApiValidator {
         if (this.validatorOpts.setAdditionalPropertiesToFalse) {
           if (!isValidReferenceObject(schema) && schema.additionalProperties === undefined && schema.discriminator === undefined) {
             schema.additionalProperties = false
+            if (schema.type === undefined) {
+              schema.type = 'object' // avoid missing type "object" for keyword "additionalProperties" error
+            }
           }
         }
 

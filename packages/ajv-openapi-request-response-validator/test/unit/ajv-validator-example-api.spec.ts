@@ -331,4 +331,24 @@ describe('The api validator for the user api spec', () => {
       },
     })
   })
+
+  it('demonstrate multipart request issue. we should properly implement this at some point', () => {
+    expect(
+      validator.validateRequestBody(
+        '/multipart',
+        'post',
+        `------WebKitFormBoundaryMFTG70c7i7lAFI6f
+    Content-Disposition: form-data; name="file"; filename="blob"
+    Content-Type: image/png
+    
+    
+    ------WebKitFormBoundaryMFTG70c7i7lAFI6f--
+    `
+      )
+    ).toEqual([{ code: 'Validation-unexpected-request-body', status: 400, title: 'A request body is not supported' }])
+  })
+
+  fit('should validate user state 1', () => {
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { enabled: true })).toBeUndefined()
+  })
 })
