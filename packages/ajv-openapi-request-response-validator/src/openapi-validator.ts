@@ -143,7 +143,7 @@ export function unserializeParameters(parameters: Record<string, Primitive>): Re
       const lastKeyIndex = splitKey.length - 1
 
       splitKey.forEach((part, index) => {
-        const cleanPart = part.replace(/]/g, '') // part.replace(']', '')
+        const cleanPart = part.replace(/]/g, '')
 
         if (index === lastKeyIndex) {
           target[cleanPart] = value
