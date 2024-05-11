@@ -66,6 +66,6 @@ module.exports = {
     },
   },
   expectedErrors: [
-    {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Cat/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Dog/additionalProperties"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-oneOf", "source": {"pointer": "#/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
+    {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Cat/additionalProperties", "parameter": "breed",}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-additionalProperties", "source": {"pointer": "#/components/schemas/Dog/additionalProperties", "parameter": "age"}, "status": 400, "title": "must NOT have additional properties"}, {"code": "Validation-oneOf", "source": {"pointer": "#/oneOf"}, "status": 400, "title": "must match exactly one schema in oneOf"}
   ]
 };

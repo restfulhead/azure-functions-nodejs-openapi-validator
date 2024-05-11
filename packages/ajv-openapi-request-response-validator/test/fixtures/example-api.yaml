@@ -76,6 +76,16 @@ paths:
               schema:
                 $ref: '#/components/schemas/OneOfExample'
 
+  '/one-of-example-list':
+    get:
+      responses:
+        '200':
+          description: Ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OneOfExampleList'
+
   '/all-of-example':
     post:
       requestBody:
@@ -126,7 +136,8 @@ paths:
             schema:
               type: object
               additionalProperties: true
-  /users/{uid}/state/{sid}:
+
+  '/users/{uid}/state/{sid}':
     put:
       operationId: put-user-state
       summary: Upserts a user state
@@ -151,6 +162,47 @@ paths:
       responses:
         '200':
           description: OK
+    patch:
+      operationId: patch-user-state
+      summary: Patch a user state
+      parameters:
+        - name: uid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sid
+          in: path
+          description: The state id or key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PatchUserStateValue'
+
+  /webhooks/mytest/{provision}:
+    post:
+      parameters:
+        - name: provision
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MyTestProvisionResponse'
+        required: true
+      responses:
+        '200':
+          description: OK
+
 components:
   responses:
     ResponseError:
@@ -347,6 +399,14 @@ components:
       discriminator:
         propertyName: objType
 
+    OneOfExampleList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OneOfExample'
+
     AllOfExample:
       type: object
       description: Example using allOf
@@ -358,11 +418,13 @@ components:
             status:
               type: string
               enum: [pending, approved, rejected]
+              
     UserStateValue:
       type: "object"
       oneOf:
         - $ref: '#/components/schemas/UserStateCoffeeCx'
         - $ref: '#/components/schemas/UserUploads'
+        - $ref: '#/components/schemas/UserStateWidgets'
       discriminator:
         propertyName: type
     UserStateCoffeeCx:
@@ -376,7 +438,10 @@ components:
           enum: [coffeeCx]
         enabled:
           type: boolean
-          description: Whether a certain flag, feature, etc. is enabled or not   
+          description: Whether a certain flag, feature, etc. is enabled or not
+        nullableTest:
+          type: string
+          nullable: true
     UserUploads:
       type: object
       required:
@@ -429,3 +494,85 @@ components:
         A valid path that matches any sequence of characters except if it
         contains '../', '//' (to avoid directory traversal attacks)
       maxLength: 255
+    UserStateWidgets:
+      type: object
+      required:
+        - type
+        - widgets
+      properties:
+        type:
+          type: string
+          enum:
+            - widgets
+        widgets:
+          type: array
+          items:
+            type: string
+          oneOf:
+            - minItems: 4
+              maxItems: 4
+            - minItems: 3
+              maxItems: 3
+            - minItems: 2
+              maxItems: 2
+    AnyValue:
+      description: Accepts any valid JSON value
+      additionalProperties: true
+      oneOf:
+        - type: string
+        - type: number
+        - type: integer
+        - type: boolean
+        - type: array
+          items:
+            $ref: '#/components/schemas/AnyValue'
+        - type: object
+          additionalProperties: true
+    PatchUserStateValue:
+      type: object
+      required:
+        - op
+        - path
+        - value
+      properties:
+        op:
+          type: string
+          enum:
+            - replace
+            - add
+            - remove
+        path:
+          type: string
+        value:
+          $ref: '#/components/schemas/AnyValue'
+    MyTestProvisionResponse:
+      type: object
+      required:
+        - taskId
+      properties:
+        taskId:
+          type: string
+        stateBag:
+          type: object
+          required:
+            - contentEntryId
+          properties:
+            contentEntryId:
+              type: string
+            guestUserUid:
+              type: string
+        siteInfo:
+          type: object
+          required:
+            - url
+          properties:
+            url:
+              type: string
+            teamId:
+              type: string
+            groupId:
+              type: string
+        errorMessage:
+          description: Reason why the job failed.
+          type: string
+    

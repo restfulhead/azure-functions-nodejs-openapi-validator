@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import * as fs from 'fs'
-import * as path from 'path'
+import * as nodepath from 'path'
 import { OpenAPIV3 } from 'openapi-types'
 import copy from 'fast-copy'
 import { createAjvInstance } from '../../src/ajv-factory'
@@ -64,8 +63,8 @@ const files = fs.readdirSync(fixtureDir)
 const testCases: { [key: string]: TestFixture } = {}
 for (const file of files) {
   if (file.endsWith('.js.txt')) {
-    const testName = path.basename(file, '.js.txt').replace(/-/g, ' ')
-    const fixtureContent = fs.readFileSync(path.resolve(fixtureDir, file), { encoding: 'utf-8' })
+    const testName = nodepath.basename(file, '.js.txt').replace(/-/g, ' ')
+    const fixtureContent = fs.readFileSync(nodepath.resolve(fixtureDir, file), { encoding: 'utf-8' })
     try {
       // eslint-disable-next-line no-eval
       const fixture: TestFixture = eval(fixtureContent)
@@ -116,14 +115,14 @@ describe('The api validator', () => {
 
     if (fixture.validateArgs.paths) {
       const params = fixture.request.query ? fixture.request.query : {}
-      for (const [methodPath, method] of Object.entries(fixture.validateArgs.paths)) {
+      for (const [path, method] of Object.entries(fixture.validateArgs.paths)) {
         if (method) {
           for (const [methodName, methodDef] of Object.entries(method)) {
             if (Object.values(OpenAPIV3.HttpMethods).includes(methodName as OpenAPIV3.HttpMethods)) {
               const operation: OpenAPIV3.OperationObject<object> = methodDef
               if (operation.parameters) {
                 const result = validator.validateQueryParams(
-                  methodPath,
+                  path,
                   methodName,
                   params,
                   fixture.requestOpts?.strictQueryParamValidation ?? true
@@ -136,7 +135,7 @@ describe('The api validator', () => {
               }
               if (operation.requestBody && fixture.request.body) {
                 const result = validator.validateRequestBody(
-                  methodPath,
+                  path,
                   methodName,
                   fixture.request.body,
                   fixture.requestOpts?.strictRequestBodyValidation ?? true

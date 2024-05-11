@@ -63,11 +63,20 @@ function mapValidatorErrors(validatorErrors: ErrorObject[] | null | undefined, s
         title: ajvErr.message ?? ET_VALIDATION,
       }
 
-      if (ajvErr.schemaPath) {
-        mappedErr.source = {
-          pointer: ajvErr.schemaPath,
+      if (ajvErr.schemaPath || ajvErr.params) {
+        mappedErr.source = {}
+
+        if (ajvErr.schemaPath) {
+          mappedErr.source.pointer = ajvErr.schemaPath
+        }
+        if (ajvErr.params) {
+          const filteredParams = Object.entries(ajvErr.params).filter(([key]) => key === 'additionalProperty' || key === 'missingProperty')
+          if (filteredParams.length > 0) {
+            mappedErr.source.parameter = Object.values(ajvErr.params).join(', ')
+          }
         }
       }
+
       mapped.push(mappedErr)
     })
     return mapped

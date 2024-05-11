@@ -26,7 +26,7 @@ describe('The api validator for the user api spec', () => {
         code: 'Validation-required',
         status: 500,
         title: "must have required property 'code'",
-        source: { pointer: '#/required' },
+        source: { pointer: '#/required', parameter: 'code' },
       },
     ])
   })
@@ -52,7 +52,7 @@ describe('The api validator for the user api spec', () => {
     ).toEqual([
       {
         code: 'Validation-additionalProperties',
-        source: { pointer: '#/additionalProperties' },
+        source: { pointer: '#/additionalProperties', parameter: 'unknownPro' },
         status: 500,
         title: 'must NOT have additional properties',
       },
@@ -73,12 +73,44 @@ describe('The api validator for the user api spec', () => {
     expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual(undefined)
   })
 
+  it('should succeed oneOf list with mixed results', () => {
+    const dataWithExtraA = { name: 'test', description: 'hello', objType: 'a' }
+    const dataWithExtraB = { somethingElse: 123, objType: 'b' }
+    expect(
+      validator.validateResponseBody('/one-of-example-list', 'get', '200', {
+        items: [dataWithExtraA, dataWithExtraB, dataWithExtraA],
+      })
+    ).toEqual(undefined)
+  })
+
+  it('should fail oneOf list with mixed results', () => {
+    const dataWithExtraA = { name: 'test', description: 'hello', objType: 'a' }
+    expect(
+      validator.validateResponseBody('/one-of-example-list', 'get', '200', {
+        items: [dataWithExtraA, { something: 'test', objType: 'a' }],
+      })
+    ).toEqual([
+      {
+        code: 'Validation-required',
+        source: { pointer: '#/components/schemas/TestRequestA/required', parameter: 'name' },
+        status: 500,
+        title: "must have required property 'name'",
+      },
+      {
+        code: 'Validation-additionalProperties',
+        source: { pointer: '#/components/schemas/TestRequestA/additionalProperties', parameter: 'something' },
+        status: 500,
+        title: 'must NOT have additional properties',
+      },
+    ])
+  })
+
   it('should fail oneOf AB', () => {
     const dataWithExtra = { name: 'test', description: 'hello', objType: 'a', somethingElse: 1 }
     expect(validator.validateResponseBody('/one-of-example', 'get', '200', dataWithExtra)).toEqual([
       {
         code: 'Validation-additionalProperties',
-        source: { pointer: '#/components/schemas/TestRequestA/additionalProperties' },
+        source: { pointer: '#/components/schemas/TestRequestA/additionalProperties', parameter: 'somethingElse' },
         status: 500,
         title: 'must NOT have additional properties',
       },
@@ -102,7 +134,7 @@ describe('The api validator for the user api spec', () => {
     expect(validator.validateRequestBody('/all-of-example', 'post', dataWithExtra)).toEqual([
       {
         code: 'Validation-required',
-        source: { pointer: '#/components/schemas/AllOfExample/required' },
+        source: { pointer: '#/components/schemas/AllOfExample/required', parameter: 'somethingElse' },
         status: 400,
         title: "must have required property 'somethingElse'",
       },
@@ -348,7 +380,159 @@ describe('The api validator for the user api spec', () => {
     ).toEqual([{ code: 'Validation-unexpected-request-body', status: 400, title: 'A request body is not supported' }])
   })
 
-  fit('should validate user state 1', () => {
-    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { enabled: true })).toBeUndefined()
+  it('should fail to validate user state without type', () => {
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { enabled: true })).toEqual([
+      { code: 'Validation-discriminator', source: { pointer: '#/discriminator' }, status: 400, title: 'tag "type" must be string' },
+    ])
+  })
+
+  it('should validate user state 1', () => {
+    expect(
+      validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'coffeeCx', enabled: true, nullableTest: null })
+    ).toBeUndefined()
+  })
+
+  it('should validate user state 2', () => {
+    expect(
+      validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', {
+        type: 'userUploads',
+        entries: [
+          {
+            id: '123',
+            name: 'test',
+            communityId: '123',
+            status: 'ongoing',
+            path: 'mycommunity/sub/dir',
+          },
+        ],
+      })
+    ).toBeUndefined()
+  })
+
+  it('should fail to validate user state invalid path', () => {
+    expect(
+      validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', {
+        type: 'userUploads',
+        entries: [
+          {
+            id: '123',
+            name: 'test',
+            communityId: '123',
+            status: 'ongoing',
+            path: '../../',
+          },
+        ],
+      })
+    ).toEqual([
+      {
+        code: 'Validation-pattern',
+        source: { pointer: '#/components/schemas/SafePath/pattern' },
+        status: 400,
+        title: 'must match pattern "(?=(^(?!.*\\.\\.\\/).+))(?=(^(?!.*\\/\\/).+))"',
+      },
+    ])
+  })
+
+  it('should validate min max for arrays', () => {
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'widgets', widgets: ['1', '2'] })).toBeUndefined()
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'widgets', widgets: ['1', '2', '3'] })).toBeUndefined()
+    expect(
+      validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'widgets', widgets: ['1', '2', '3', '4'] })
+    ).toBeUndefined()
+  })
+
+  it('should fail to validate min max with empty array', () => {
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'widgets', widgets: [] })).toEqual([
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/0/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 4 items',
+      },
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/1/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 3 items',
+      },
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/2/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 2 items',
+      },
+      {
+        code: 'Validation-oneOf',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf' },
+        status: 400,
+        title: 'must match exactly one schema in oneOf',
+      },
+    ])
+  })
+  it('should fail to validate min max for arrays', () => {
+    expect(validator.validateRequestBody('/users/{uid}/state/{sid}', 'put', { type: 'widgets', widgets: ['1'] })).toEqual([
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/0/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 4 items',
+      },
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/1/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 3 items',
+      },
+      {
+        code: 'Validation-minItems',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf/2/minItems' },
+        status: 400,
+        title: 'must NOT have fewer than 2 items',
+      },
+      {
+        code: 'Validation-oneOf',
+        source: { pointer: '#/components/schemas/UserStateWidgets/properties/widgets/oneOf' },
+        status: 400,
+        title: 'must match exactly one schema in oneOf',
+      },
+    ])
+  })
+
+  it('should patch user state', () => {
+    expect(
+      validator.validateRequestBody('/users/{uid}/state/{sid}', 'patch', [
+        {
+          op: 'add',
+          path: '/entries',
+          value: {
+            id: 'HoPnVO3QD1uHdzJXpqD2U',
+            title: 'you ok?',
+            date: '2024-04-04T18:50:54.419Z',
+            messages: [
+              { role: 'user', content: 'you ok?' },
+              {
+                content:
+                  "As an artificial intelligence, I don't have feelings, but I'm functioning as expected. Thank you for asking! How can I assist you today?",
+                role: 'assistant',
+              },
+            ],
+          },
+        },
+      ])
+    ).toBeUndefined()
+  })
+
+  it('should validate webhook response', () => {
+    expect(
+      validator.validateRequestBody('/webhooks/mytest/{provision}', 'post', {
+        siteInfo: {
+          url: 'https://bertelsmann.sharepoint.com/sites/bportal_bcp_dev_privatecommunitytopublic',
+          groupId: '9767a68f-842f-4197-a588-5e639358281b',
+          teamId: '9767a68f-842f-4197-a588-5e639358281b',
+        },
+        taskId: '88a4984e-cf31-4b46-b849-035eb76feaf5',
+        stateBag: { contentEntryId: 'wNC62LREKjzmLnUnxPjHHW' },
+      })
+    ).toBeUndefined()
   })
 })
