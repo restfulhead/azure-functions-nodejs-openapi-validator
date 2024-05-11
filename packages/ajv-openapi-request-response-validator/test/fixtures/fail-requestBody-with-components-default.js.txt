@@ -31,7 +31,8 @@ module.exports = {
   expectedErrors: [
         { 
             code: 'Validation-additionalProperties', 
-            source: { 
+            source: {
+                "parameter": "something-else",
                 pointer: '#/components/schemas/Test1/additionalProperties'
             }, 
             status: 400, 
