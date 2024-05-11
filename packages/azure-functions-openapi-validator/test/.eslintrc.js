@@ -8,6 +8,7 @@ module.exports = {
     extends: ["../.eslintrc.js"],
     rules: {
       "@typescript-eslint/no-magic-numbers": "off",
-      "no-console": "off"
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-console": "off",
     }
 }

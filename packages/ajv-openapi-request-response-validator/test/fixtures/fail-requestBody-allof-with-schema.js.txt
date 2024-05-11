@@ -109,6 +109,7 @@ module.exports = {
     {
       "code": "Validation-additionalProperties",
       "source": {
+        "parameter": "bark",
         "pointer": "#/components/schemas/Cat/additionalProperties",
       },
       "status": 400,

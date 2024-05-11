@@ -76,6 +76,7 @@ module.exports = {
       {
          "code": "Validation-required",
          "source": {
+           "parameter": "age",
            "pointer": "#/components/schemas/PetByAge/required",
          },
          "status": 400,
@@ -84,6 +85,7 @@ module.exports = {
        {
          "code": "Validation-required",
          "source": {
+           "parameter": "pet_type",
            "pointer": "#/components/schemas/PetByType/required",
          },
          "status": 400,

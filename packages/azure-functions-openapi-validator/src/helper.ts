@@ -2,8 +2,6 @@ import { HttpResponseInit, InvocationContext } from '@azure/functions'
 import { HeadersInit } from 'undici'
 
 export const STATUS_CODE_OK = 200
-export const STATUS_CODE_BAD_REQUEST = 400
-export const STATUS_CODE_INTERNAL_SERVER_ERROR = 500
 
 export const createJsonResponse = (body: unknown, status = STATUS_CODE_OK, headers?: HeadersInit): HttpResponseInit => {
   const finalHeaders: HeadersInit = headers ?? {}

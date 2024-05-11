@@ -28,7 +28,8 @@ module.exports = {
     expectedErrors: [
         { 
             code: 'Validation-required', 
-            source: { 
+            source: {
+                "parameter": "foo",
                 pointer: '#/components/schemas/Test1/required'
             }, 
             status: 400, 
